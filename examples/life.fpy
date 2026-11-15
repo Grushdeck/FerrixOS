@@ -1,0 +1,59 @@
+# life.fpy - Conway's Life 78x22 drawn straight into text video memory
+W = 78
+H = 22
+cells = bytes(1716)   # W*H
+nxt = bytes(1716)
+
+def idx(x, y) -> int:
+    return y * W + x
+
+def neighbours(x, y) -> int:
+    n = 0
+    for dy in range(-1, 2):
+        for dx in range(-1, 2):
+            if dx != 0 or dy != 0:
+                xx = (x + dx + W) % W
+                yy = (y + dy + H) % H
+                n += cells[idx(xx, yy)]
+    return n
+
+def step():
+    for y in range(0, H):
+        for x in range(0, W):
+            n = neighbours(x, y)
+            c = cells[idx(x, y)]
+            if c and (n == 2 or n == 3):
+                nxt[idx(x, y)] = 1
+            elif not c and n == 3:
+                nxt[idx(x, y)] = 1
+            else:
+                nxt[idx(x, y)] = 0
+    for i in range(0, W * H):
+        cells[i] = nxt[i]
+
+def draw():
+    seg = vseg()                   # screen segment: B800h, inside gui - the window's virtual screen
+    for y in range(0, H):
+        for x in range(0, W):
+            if cells[idx(x, y)]:
+                pokew(seg, ((y + 1) * 80 + x + 1) * 2, 0x2ADB)
+            else:
+                pokew(seg, ((y + 1) * 80 + x + 1) * 2, 0x0720)
+
+for i in range(0, W * H):
+    if rand() % 3 == 0:
+        cells[i] = 1
+cls()
+cursor(False)
+putsat(0, 0, " Life: press any key to exit ", 0x70)
+gen = 0
+while not keyhit():
+    draw()
+    gen += 1
+    putsat(24, 0, "Generation: ", 0x0E)
+    setcur(24, 12)
+    print(gen, end="   ")
+    step()
+getkey()
+cursor(True)
+cls()

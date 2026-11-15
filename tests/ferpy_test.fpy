@@ -1,0 +1,98 @@
+# ferpy_test.fpy - self-check of the compiler; every line must print OK
+fails = 0
+
+def check(name: str, cond):
+    global fails
+    if cond:
+        print("OK  ", name)
+    else:
+        print("FAIL", name)
+        fails += 1
+
+def fact(n):
+    if n <= 1:
+        return 1
+    return n * fact(n - 1)
+
+def sum_to(n):
+    s = 0
+    for i in range(1, n + 1):
+        s += i
+    return s
+
+def count_down(n) -> int:
+    c = 0
+    while n > 0:
+        n -= 1
+        c += 1
+        if c == 3:
+            continue
+        if c == 7:
+            break
+    return c
+
+def first_neg(a: array, n) -> int:
+    for i in range(n):
+        if a[i] < 0:
+            return i
+    else:
+        return -1
+    return -2
+
+def noret() -> None:
+    pass
+
+arr = array(10)
+buf = bytes(32)
+
+check("arith", 2 + 3 * 4 - 6 // 2 == 11)
+check("prec", (2 + 3) * 4 == 20 and -3 * -3 == 9)
+check("floor div", -7 // 2 == -4 and 7 // -2 == -4 and -7 // -2 == 3)
+check("mod", -7 % 3 == 2 and 7 % -3 == -2 and 10 % 5 == 0)
+check("shifts", 1 << 10 == 1024 and -16 >> 2 == -4 and 0xFF & 0x0F == 15)
+check("bitops", 5 | 2 == 7 and 6 ^ 3 == 5 and ~0 == -1)
+check("compare", 1 < 2 and 2 <= 2 and 3 > 2 and 3 >= 3 and 1 != 2 and not 1 == 2)
+check("logic", (0 or 5) == 1 and (3 and 0) == 0 and (not 0) == 1)
+check("recursion", fact(7) == 5040)
+check("for range", sum_to(100) == 5050)
+check("break/continue", count_down(20) == 7)
+arr[0] = 5
+arr[1] = -1
+arr[9] = 42
+check("array", arr[0] + arr[9] == 47 and first_neg(arr, 10) == 1 and len(arr) == 10)
+arr[1] = 1
+check("for-else", first_neg(arr, 10) == -1)
+check("sizeof", sizeof(buf) == 32)
+print("-- press a key --")
+getkey()
+strcpy(buf, "abc")
+check("strcpy/len", len(buf) == 3 and buf[0] == ord("a") and buf == "abc")
+strcat(buf, "def")
+check("strcat", buf == "abcdef" and buf != "abc" and strcmp(buf, "abd") < 0)
+check("find", find(buf, ord("d")) == 3 and find(buf, ord("z")) == -1)
+check("int()", int("123") == 123 and int("-45") == -45 and int(" 7x") == 7)
+check("str()", str(-1234) == "-1234" and str(0) == "0")
+check("min/max/abs", min(3, -2) == -2 and max(3, -2) == 3 and abs(-9) == 9)
+x = 10
+x += 5
+x *= 2
+x -= 1
+x //= 4
+x %= 5
+x <<= 2
+x |= 1
+check("augassign", x == 9)
+i = 0
+n = 0
+while i < 10:
+    i += 1
+    if i % 2:
+        continue
+    n += i
+check("while", n == 30)
+check("string index", "hello"[1] == ord("e") and len("hello") == 5)
+check("hex/bin", 0x10 + 0b101 == 21)
+check("neg literal", -32768 < 0 and 32767 > 0 and 65535 == -1)
+noret()
+check("escapes", len("a\tb\n") == 4 and "\x41" == "A")
+print("fails:", fails)

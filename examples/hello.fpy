@@ -1,0 +1,9 @@
+# hello.fpy - first ferpy program
+print("Hello from ferpy!")
+name = args()
+if len(name) == 0:
+    print("What is your name? ", end="")
+    name = input()
+print("Hello,", name)
+for i in range(1, 6):
+    print(i, "*", i, "=", i * i)

@@ -1,0 +1,26 @@
+# strings.fpy - strings and files
+buf = bytes(128)
+line = bytes(64)
+strcpy(buf, "Ferrix")
+strcat(buf, " + ferpy")
+print(buf, "- length", len(buf))
+upper(buf)
+print(buf)
+print("Position of '+':", find(buf, ord("+")))
+i = 0
+while i < len(buf):
+    putc(buf[i])
+    putc(ord("."))
+    i += 1
+print()
+# write and read a file
+strcpy(line, "a line from ferpy")
+if writefile("/FERPY.TXT", line, len(line)):
+    n = readfile("/FERPY.TXT", buf, 127)
+    buf[n] = 0
+    print("Read", n, "bytes:", buf)
+else:
+    print("Cannot write file")
+print("File size:", stat("/FERPY.TXT"))
+getcwd(buf)
+print("Current dir:", buf, "time", hour(), ":", minute())
