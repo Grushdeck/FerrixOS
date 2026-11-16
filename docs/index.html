@@ -1,0 +1,3367 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ferrix OS — 16-битная ОС для IBM PC/AT</title>
+<meta name="description" content="Ferrix OS — 16-битная операционная система в реальном режиме x86: ядро 31.7 КБ, FAT12/FAT16, VGA, Sound Blaster 16 и Intel HD Audio, 38 системных вызовов int 80h.">
+<style>
+/* ==========================================================================
+   FERRIX OS — Official Project Website Stylesheet
+   Aesthetic: Forged Bare-Metal Industrial × IBM PC/AT 16-Color VGA Precision
+   ========================================================================== */
+
+:root {
+  /* Chassis & Forged Iron Surfaces */
+  --bg-void: #07080b;
+  --bg-chassis: #0c0e13;
+  --bg-panel: #12151d;
+  --bg-panel-elevated: #171b26;
+  --bg-panel-hover: #1d2230;
+  --bg-crt: #030406;
+
+  /* Hairlines & Structural Borders */
+  --border-subtle: #1f2432;
+  --border-strong: #2d3548;
+  --border-forge: rgba(255, 138, 43, 0.42);
+
+  /* Typography */
+  --text-primary: #eef1f7;
+  --text-secondary: #9ba4b8;
+  --text-muted: #646e85;
+
+  /* Ferrix Forge Emblem Palette (from apps/fetch.asm) */
+  --ferrix-coral: #ff5555;   /* 0x0C */
+  --ferrix-amber: #ffbe3d;   /* 0x0E tuned for UI legibility */
+  --ferrix-yellow: #ffff55;  /* Pure VGA 0x0E */
+  --ferrix-ochre: #cc6611;   /* 0x06 */
+  --ferrix-crimson: #aa1818; /* 0x04 */
+
+  /* Authentic IBM VGA 16-Color Hardware Palette */
+  --vga-black: #000000;
+  --vga-blue: #0000aa;
+  --vga-green: #00aa00;
+  --vga-cyan: #00aaaa;
+  --vga-red: #aa0000;
+  --vga-magenta: #aa00aa;
+  --vga-brown: #aa5500;
+  --vga-lightgray: #aaaaaa;
+  --vga-darkgray: #555555;
+  --vga-brightblue: #5555ff;
+  --vga-brightgreen: #55ff55;
+  --vga-brightcyan: #55ffff;
+  --vga-brightred: #ff5555;
+  --vga-brightmagenta: #ff55ff;
+  --vga-brightyellow: #ffff55;
+  --vga-white: #ffffff;
+
+  /* Fonts */
+  --font-sans: 'Inter', 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'JetBrains Mono', 'IBM Plex Mono', 'Fira Code', 'Cascadia Mono', 'Consolas', monospace;
+
+  /* Layout */
+  --container-max: 1240px;
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  scroll-behavior: smooth;
+  background-color: var(--bg-void);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  font-size: 16px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+body {
+  background-color: var(--bg-void);
+  background-image:
+    radial-gradient(ellipse 80% 45% at 50% -10%, rgba(255, 85, 85, 0.09), transparent 65%),
+    radial-gradient(ellipse 55% 35% at 85% 12%, rgba(255, 190, 61, 0.06), transparent 60%),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.018) 1px, transparent 1px),
+    linear-gradient(to right, rgba(255, 255, 255, 0.018) 1px, transparent 1px);
+  background-size: 100% 100%, 100% 100%, 40px 40px, 40px 40px;
+  overflow-x: hidden;
+  color: var(--text-primary);
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button, input {
+  font-family: inherit;
+}
+
+code, pre, .mono {
+  font-family: var(--font-mono);
+}
+
+.container {
+  width: 100%;
+  max-width: var(--container-max);
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
+/* ==========================================================================
+   Top Navigation Bar
+   ========================================================================== */
+.site-header {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: rgba(7, 8, 11, 0.86);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.nav-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 66px;
+  gap: 16px;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.brand-mark {
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  background: #13161f;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  flex-shrink: 0;
+}
+
+.brand-name {
+  font-family: var(--font-mono);
+  font-size: 1.05rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  color: var(--text-primary);
+}
+
+.brand-badge {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: 3px;
+  background: rgba(255, 190, 61, 0.12);
+  color: var(--ferrix-amber);
+  border: 1px solid rgba(255, 190, 61, 0.3);
+}
+
+.nav-links {
+  display: flex;
+  align-items: center;
+  gap: 22px;
+}
+
+.nav-links a {
+  font-size: 0.88rem;
+  color: var(--text-secondary);
+  transition: color 0.16s ease;
+  font-weight: 500;
+}
+
+.nav-links a:hover {
+  color: var(--text-primary);
+}
+
+.nav-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* ==========================================================================
+   Buttons & Tags
+   ========================================================================== */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 16px;
+  font-size: 0.88rem;
+  font-weight: 600;
+  border-radius: var(--radius-sm);
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: all 0.16s ease;
+  white-space: nowrap;
+}
+
+.btn-sm {
+  padding: 7px 12px;
+  font-size: 0.8rem;
+}
+
+.btn-forge {
+  background: linear-gradient(135deg, #ff6242 0%, #e58519 100%);
+  color: #090a0d;
+  font-weight: 700;
+  border-color: rgba(255, 190, 61, 0.45);
+  box-shadow: 0 4px 20px rgba(255, 98, 66, 0.22);
+}
+
+.btn-forge:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 26px rgba(255, 98, 66, 0.36);
+  filter: brightness(1.06);
+}
+
+.btn-ghost {
+  background: var(--bg-panel);
+  color: var(--text-primary);
+  border-color: var(--border-strong);
+}
+
+.btn-ghost:hover {
+  background: var(--bg-panel-hover);
+  border-color: #414c66;
+}
+
+.btn-terminal {
+  background: rgba(85, 255, 85, 0.09);
+  color: var(--vga-brightgreen);
+  border-color: rgba(85, 255, 85, 0.3);
+  font-family: var(--font-mono);
+}
+
+.btn-terminal:hover {
+  background: rgba(85, 255, 85, 0.16);
+  border-color: rgba(85, 255, 85, 0.55);
+}
+
+.eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-mono);
+  font-size: 0.76rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--ferrix-amber);
+  background: rgba(255, 190, 61, 0.08);
+  border: 1px solid rgba(255, 190, 61, 0.24);
+  padding: 5px 11px;
+  border-radius: 3px;
+}
+
+.eyebrow-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--ferrix-coral);
+  box-shadow: 0 0 8px var(--ferrix-coral);
+}
+
+/* ==========================================================================
+   Hero Section & Interactive FSH Terminal
+   ========================================================================== */
+.hero {
+  padding: 56px 0 44px;
+  position: relative;
+}
+
+.hero-grid {
+  display: grid;
+  grid-template-columns: 1.02fr 1.18fr;
+  gap: 36px;
+  align-items: center;
+}
+
+.hero-title {
+  font-size: clamp(2.25rem, 4.2vw, 3.55rem);
+  line-height: 1.07;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  margin-top: 18px;
+  margin-bottom: 18px;
+}
+
+.hero-title .forge-grad {
+  background: linear-gradient(95deg, #ff5555 0%, #ffbe3d 52%, #ff8533 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.hero-lead {
+  font-size: 1.06rem;
+  color: var(--text-secondary);
+  margin-bottom: 26px;
+  max-width: 540px;
+  line-height: 1.65;
+}
+
+.hero-lead code {
+  color: var(--vga-brightcyan);
+  background: rgba(85, 255, 255, 0.08);
+  padding: 1px 6px;
+  border-radius: 3px;
+  font-size: 0.92em;
+}
+
+.hero-ctas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 30px;
+}
+
+.telemetry-strip {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  padding-top: 22px;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.telemetry-item {
+  background: rgba(18, 21, 29, 0.72);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+}
+
+.telemetry-val {
+  font-family: var(--font-mono);
+  font-size: 1.12rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  display: block;
+}
+
+.telemetry-lbl {
+  font-size: 0.74rem;
+  color: var(--text-muted);
+  display: block;
+  margin-top: 2px;
+}
+
+/* VGA CRT Bezel & Live FSH Console */
+.crt-frame {
+  background: #0d1017;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  box-shadow:
+    0 24px 60px rgba(0, 0, 0, 0.7),
+    0 0 0 1px rgba(255, 255, 255, 0.03) inset;
+  overflow: hidden;
+  position: relative;
+}
+
+.crt-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 9px 14px;
+  background: #141823;
+  border-bottom: 1px solid var(--border-subtle);
+  font-family: var(--font-mono);
+  font-size: 0.76rem;
+  color: var(--text-secondary);
+}
+
+.crt-leds {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.led {
+  width: 9px;
+  height: 9px;
+  border-radius: 2px;
+}
+.led-red { background: var(--ferrix-coral); }
+.led-amber { background: var(--ferrix-amber); }
+.led-green { background: var(--vga-brightgreen); box-shadow: 0 0 6px rgba(85, 255, 85, 0.6); }
+
+.crt-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.crt-tag {
+  padding: 2px 6px;
+  background: #090b10;
+  border: 1px solid var(--border-subtle);
+  border-radius: 3px;
+  font-size: 0.7rem;
+  color: var(--text-muted);
+}
+
+.terminal-screen {
+  background: var(--vga-black);
+  color: var(--vga-lightgray);
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  line-height: 1.38;
+  height: 390px;
+  padding: 14px 16px;
+  overflow-y: auto;
+  position: relative;
+  cursor: text;
+  user-select: text;
+}
+
+.terminal-screen.scanlines::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    to bottom,
+    rgba(255, 255, 255, 0) 0px,
+    rgba(255, 255, 255, 0) 2px,
+    rgba(0, 0, 0, 0.26) 3px,
+    rgba(0, 0, 0, 0.26) 4px
+  );
+  pointer-events: none;
+}
+
+.term-output {
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.term-input-line {
+  display: flex;
+  align-items: center;
+  flex-wrap: nowrap;
+  margin-top: 2px;
+}
+
+.term-prompt-user { color: var(--vga-brightgreen); font-weight: 600; }
+.term-prompt-path { color: var(--vga-brightcyan); }
+.term-prompt-arrow { color: var(--vga-white); }
+
+.term-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--vga-white);
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  line-height: 1.38;
+  caret-color: var(--vga-brightgreen);
+  min-width: 80px;
+}
+
+/* VGA text colors inside terminal */
+.c-07 { color: var(--vga-lightgray); }
+.c-08 { color: var(--vga-darkgray); }
+.c-0a { color: var(--vga-brightgreen); }
+.c-0b { color: var(--vga-brightcyan); }
+.c-0c { color: var(--vga-brightred); }
+.c-0e { color: var(--vga-brightyellow); }
+.c-06 { color: #d4751c; }
+.c-04 { color: #cc2929; }
+.c-0f { color: var(--vga-white); }
+
+.matrix-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  background: #000;
+  display: none;
+  z-index: 5;
+}
+
+.matrix-canvas.active {
+  display: block;
+}
+
+.terminal-quickbar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  padding: 9px 12px;
+  background: #10131c;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.quickbar-label {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  margin-right: 4px;
+}
+
+.cmd-chip {
+  font-family: var(--font-mono);
+  font-size: 0.73rem;
+  padding: 3px 8px;
+  background: #181d2a;
+  color: var(--vga-brightcyan);
+  border: 1px solid var(--border-strong);
+  border-radius: 3px;
+  cursor: pointer;
+  transition: all 0.14s ease;
+}
+
+.cmd-chip:hover {
+  background: #232a3d;
+  border-color: var(--vga-brightcyan);
+  color: var(--vga-white);
+}
+
+/* ==========================================================================
+   Release Patch Banner
+   ========================================================================== */
+.release-ribbon {
+  margin: 12px 0 64px;
+}
+
+.release-box {
+  background: linear-gradient(90deg, rgba(255, 85, 85, 0.08) 0%, rgba(18, 21, 29, 0.92) 32%, rgba(18, 21, 29, 0.92) 100%);
+  border: 1px solid var(--border-strong);
+  border-left: 3px solid var(--ferrix-coral);
+  border-radius: var(--radius-md);
+  padding: 18px 22px;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 22px;
+  align-items: center;
+}
+
+.release-tag-col {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.release-ver {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: var(--ferrix-amber);
+}
+
+.release-date {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.release-notes {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px 20px;
+  list-style: none;
+  font-size: 0.86rem;
+  color: var(--text-secondary);
+}
+
+.release-notes li::before {
+  content: "▸ ";
+  color: var(--ferrix-coral);
+  font-family: var(--font-mono);
+}
+
+.release-notes code {
+  color: var(--text-primary);
+  font-size: 0.82rem;
+}
+
+/* ==========================================================================
+   Section Scaffolding
+   ========================================================================== */
+.section {
+  padding: 68px 0;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.section-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24px;
+  margin-bottom: 36px;
+  flex-wrap: wrap;
+}
+
+.section-title {
+  font-size: clamp(1.65rem, 2.8vw, 2.25rem);
+  font-weight: 800;
+  letter-spacing: -0.025em;
+  margin-top: 10px;
+}
+
+.section-desc {
+  color: var(--text-secondary);
+  max-width: 620px;
+  font-size: 0.98rem;
+  margin-top: 8px;
+}
+
+/* ==========================================================================
+   Core Capabilities Bento Grid
+   ========================================================================== */
+.bento-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+
+.bento-card {
+  background: var(--bg-panel);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 22px;
+  transition: border-color 0.18s ease, transform 0.18s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.bento-card:hover {
+  border-color: var(--border-strong);
+  transform: translateY(-2px);
+}
+
+.bento-card.span-2 {
+  grid-column: span 2;
+}
+
+.bento-kicker {
+  font-family: var(--font-mono);
+  font-size: 0.73rem;
+  color: var(--ferrix-amber);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.bento-addr {
+  color: var(--text-muted);
+}
+
+.bento-card h3 {
+  font-size: 1.15rem;
+  font-weight: 700;
+  margin-bottom: 9px;
+  letter-spacing: -0.01em;
+}
+
+.bento-card p {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+
+.bento-card code {
+  color: var(--vga-brightcyan);
+  background: rgba(85, 255, 255, 0.07);
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-size: 0.84rem;
+}
+
+.spec-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 14px;
+}
+
+.spec-pill {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  padding: 3px 8px;
+  border-radius: 3px;
+  background: #0c0e14;
+  border: 1px solid var(--border-subtle);
+  color: var(--text-secondary);
+}
+
+/* ==========================================================================
+   Interactive Real-Mode Memory Map (0000:0000 -> B800:0000)
+   ========================================================================== */
+.arch-layout {
+  display: grid;
+  grid-template-columns: 1.15fr 0.85fr;
+  gap: 24px;
+  align-items: start;
+}
+
+.mem-bar-list {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.mem-seg {
+  display: grid;
+  grid-template-columns: 118px 1fr auto;
+  align-items: center;
+  gap: 14px;
+  padding: 11px 14px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  text-align: left;
+  width: 100%;
+  color: var(--text-primary);
+}
+
+.mem-seg:hover {
+  background: var(--bg-panel-hover);
+  border-color: var(--border-strong);
+}
+
+.mem-seg.active {
+  background: rgba(255, 190, 61, 0.08);
+  border-color: var(--ferrix-amber);
+  box-shadow: inset 3px 0 0 var(--ferrix-amber);
+}
+
+.mem-addr {
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--ferrix-amber);
+}
+
+.mem-title {
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+
+.mem-size {
+  font-family: var(--font-mono);
+  font-size: 0.73rem;
+  color: var(--text-muted);
+  padding: 2px 7px;
+  background: #0b0d12;
+  border: 1px solid var(--border-subtle);
+  border-radius: 3px;
+}
+
+.mem-inspector {
+  background: var(--bg-panel);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  padding: 24px;
+  position: sticky;
+  top: 90px;
+}
+
+.inspector-addr {
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  color: var(--vga-brightcyan);
+  margin-bottom: 6px;
+}
+
+.inspector-title {
+  font-size: 1.28rem;
+  font-weight: 700;
+  margin-bottom: 12px;
+}
+
+.inspector-body {
+  font-size: 0.92rem;
+  color: var(--text-secondary);
+  line-height: 1.65;
+  margin-bottom: 18px;
+}
+
+.inspector-meta {
+  background: #0a0c11;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: 14px;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  color: var(--vga-lightgray);
+  white-space: pre-wrap;
+}
+
+/* ==========================================================================
+   Authentic VGA Screenshots Gallery + Lightbox
+   ========================================================================== */
+.gallery-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.toggle-btn {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  padding: 7px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-panel);
+  border: 1px solid var(--border-strong);
+  color: var(--text-secondary);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.toggle-btn.active {
+  border-color: var(--vga-brightgreen);
+  color: var(--vga-brightgreen);
+  background: rgba(85, 255, 85, 0.08);
+}
+
+.shots-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 20px;
+}
+
+.shot-card {
+  background: var(--bg-panel);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  transition: border-color 0.18s ease, transform 0.18s ease;
+  cursor: zoom-in;
+}
+
+.shot-card:hover {
+  border-color: var(--ferrix-amber);
+  transform: translateY(-2px);
+}
+
+.shot-card.featured {
+  grid-column: span 2;
+  display: grid;
+  grid-template-columns: 1.45fr 0.85fr;
+}
+
+.shot-viewport {
+  background: #000;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.shot-viewport img {
+  width: 100%;
+  height: auto;
+  display: block;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+}
+
+.shots-crt .shot-viewport::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    to bottom,
+    rgba(255, 255, 255, 0) 0px,
+    rgba(255, 255, 255, 0) 2px,
+    rgba(0, 0, 0, 0.28) 3px,
+    rgba(0, 0, 0, 0.28) 4px
+  );
+  pointer-events: none;
+}
+
+.shot-info {
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 10px;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.shot-card.featured .shot-info {
+  border-top: none;
+  border-left: 1px solid var(--border-subtle);
+  padding: 24px;
+}
+
+.shot-cmd {
+  font-family: var(--font-mono);
+  font-size: 0.76rem;
+  color: var(--vga-brightgreen);
+}
+
+.shot-title {
+  font-size: 1.06rem;
+  font-weight: 700;
+  margin-top: 3px;
+}
+
+.shot-desc {
+  font-size: 0.87rem;
+  color: var(--text-secondary);
+  line-height: 1.55;
+}
+
+/* Lightbox Modal */
+.lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 999;
+  background: rgba(4, 5, 8, 0.92);
+  backdrop-filter: blur(8px);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.lightbox.open {
+  display: flex;
+}
+
+.lightbox-inner {
+  max-width: 1040px;
+  width: 100%;
+  background: var(--bg-panel);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  box-shadow: 0 30px 90px rgba(0, 0, 0, 0.85);
+}
+
+.lightbox-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: #0e1118;
+  border-bottom: 1px solid var(--border-subtle);
+  font-family: var(--font-mono);
+  font-size: 0.84rem;
+}
+
+.lightbox-img-wrap {
+  background: #000;
+  padding: 12px;
+  display: flex;
+  justify-content: center;
+}
+
+.lightbox-img-wrap img {
+  width: 100%;
+  max-height: 76vh;
+  object-fit: contain;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+}
+
+/* ==========================================================================
+   Interactive Browser SYNTH.FAP Emulator (Web Audio API)
+   ========================================================================== */
+.synth-shell {
+  background: #000000;
+  border: 2px solid #293247;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  font-family: var(--font-mono);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.65);
+}
+
+.synth-titlebar {
+  background: var(--vga-blue);
+  color: var(--vga-white);
+  padding: 7px 14px;
+  font-weight: 700;
+  font-size: 0.88rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.synth-body {
+  padding: 20px 22px 24px;
+}
+
+.synth-help {
+  color: var(--vga-lightgray);
+  font-size: 0.78rem;
+  margin-bottom: 16px;
+  line-height: 1.5;
+}
+
+.synth-controls {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-bottom: 22px;
+}
+
+.synth-param {
+  background: #0b0d12;
+  border: 1px solid #222736;
+  padding: 10px 12px;
+  border-radius: 3px;
+}
+
+.synth-param-lbl {
+  font-size: 0.72rem;
+  color: var(--vga-lightgray);
+  display: block;
+  margin-bottom: 6px;
+}
+
+.synth-btn-row {
+  display: flex;
+  gap: 5px;
+  flex-wrap: wrap;
+}
+
+.synth-opt {
+  font-family: var(--font-mono);
+  font-size: 0.74rem;
+  padding: 3px 7px;
+  background: #141821;
+  color: var(--vga-lightgray);
+  border: 1px solid #2d3446;
+  cursor: pointer;
+  border-radius: 2px;
+}
+
+.synth-opt.active {
+  background: rgba(255, 255, 85, 0.14);
+  color: var(--vga-brightyellow);
+  border-color: var(--vga-brightyellow);
+  font-weight: 700;
+}
+
+.piano-rack {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  user-select: none;
+}
+
+.piano-octave-row {
+  position: relative;
+  height: 92px;
+  display: flex;
+  gap: 4px;
+}
+
+.pkey-white {
+  flex: 1;
+  background: var(--vga-lightgray);
+  color: #000;
+  border: none;
+  border-bottom: 4px solid #777;
+  border-radius: 2px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  padding-bottom: 8px;
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 0.82rem;
+  cursor: pointer;
+  position: relative;
+  transition: background 0.05s;
+}
+
+.pkey-white .note-sub {
+  font-size: 0.65rem;
+  color: #333;
+  font-weight: 500;
+}
+
+.pkey-white:active, .pkey-white.playing {
+  background: var(--vga-brightyellow);
+  border-bottom-color: #b5a600;
+  transform: translateY(1px);
+}
+
+.pkey-black {
+  position: absolute;
+  top: 0;
+  width: 6.2%;
+  height: 54px;
+  background: #353842;
+  color: var(--vga-white);
+  border: 1px solid #000;
+  border-bottom: 3px solid #1c1e24;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  padding-bottom: 5px;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.pkey-black:active, .pkey-black.playing {
+  background: var(--ferrix-coral);
+  color: #000;
+}
+
+.synth-status {
+  margin-top: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.76rem;
+  color: var(--vga-darkgray);
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+/* ==========================================================================
+   Software Catalog (/SYSTEM/SYSAPPS)
+   ========================================================================== */
+.filter-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 24px;
+}
+
+.filter-tab {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  padding: 7px 13px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-panel);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.filter-tab:hover {
+  border-color: var(--border-strong);
+  color: var(--text-primary);
+}
+
+.filter-tab.active {
+  background: rgba(255, 190, 61, 0.12);
+  border-color: var(--ferrix-amber);
+  color: var(--ferrix-amber);
+  font-weight: 600;
+}
+
+.apps-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+}
+
+.app-card {
+  background: var(--bg-panel);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 12px;
+  transition: border-color 0.16s ease;
+}
+
+.app-card:hover {
+  border-color: var(--border-strong);
+}
+
+.app-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.app-bin {
+  font-family: var(--font-mono);
+  font-size: 0.96rem;
+  font-weight: 700;
+  color: var(--vga-brightcyan);
+}
+
+.app-fap {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  padding: 2px 6px;
+  border-radius: 3px;
+  background: #0a0c11;
+  border: 1px solid var(--border-subtle);
+  color: var(--text-muted);
+}
+
+.app-desc {
+  font-size: 0.87rem;
+  color: var(--text-secondary);
+  line-height: 1.55;
+}
+
+.app-usage {
+  font-family: var(--font-mono);
+  font-size: 0.74rem;
+  color: var(--vga-brightgreen);
+  background: #090b0f;
+  padding: 6px 9px;
+  border-radius: 3px;
+  border: 1px solid #181d28;
+}
+
+/* ==========================================================================
+   Toolchain (ferpy -> frasm -> IRON.FAP) & FAPI int 80h Explorer
+   ========================================================================== */
+.dev-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  align-items: start;
+}
+
+.code-panel {
+  background: #0a0c11;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.code-tabs {
+  display: flex;
+  background: #121620;
+  border-bottom: 1px solid var(--border-subtle);
+  overflow-x: auto;
+}
+
+.code-tab {
+  font-family: var(--font-mono);
+  font-size: 0.76rem;
+  padding: 10px 14px;
+  background: transparent;
+  border: none;
+  border-right: 1px solid var(--border-subtle);
+  color: var(--text-secondary);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.code-tab.active {
+  background: #0a0c11;
+  color: var(--ferrix-amber);
+  font-weight: 700;
+  box-shadow: inset 0 2px 0 var(--ferrix-coral);
+}
+
+.code-body {
+  padding: 18px;
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  line-height: 1.55;
+  color: #dce3f2;
+  overflow-x: auto;
+  min-height: 350px;
+}
+
+.pipeline-steps {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  background: #10131c;
+  border-top: 1px solid var(--border-subtle);
+  font-family: var(--font-mono);
+  font-size: 0.73rem;
+  color: var(--text-secondary);
+  flex-wrap: wrap;
+}
+
+.pipe-arrow {
+  color: var(--ferrix-coral);
+}
+
+/* FAPI Syscall Explorer */
+.syscall-panel {
+  background: var(--bg-panel);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.syscall-toolbar {
+  padding: 12px 14px;
+  background: #141823;
+  border-bottom: 1px solid var(--border-subtle);
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.syscall-search {
+  flex: 1;
+  background: #090b10;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  padding: 7px 11px;
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  outline: none;
+}
+
+.syscall-search:focus {
+  border-color: var(--ferrix-amber);
+}
+
+.syscall-count {
+  font-family: var(--font-mono);
+  font-size: 0.74rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.syscall-list {
+  max-height: 382px;
+  overflow-y: auto;
+}
+
+.syscall-row {
+  display: grid;
+  grid-template-columns: 56px 104px 1fr;
+  gap: 10px;
+  padding: 9px 14px;
+  border-bottom: 1px solid var(--border-subtle);
+  font-size: 0.82rem;
+  align-items: baseline;
+}
+
+.syscall-row:hover {
+  background: var(--bg-panel-hover);
+}
+
+.sys-ah {
+  font-family: var(--font-mono);
+  color: var(--ferrix-amber);
+  font-weight: 700;
+}
+
+.sys-name {
+  font-family: var(--font-mono);
+  color: var(--vga-brightcyan);
+  font-weight: 600;
+}
+
+.sys-regs {
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+}
+
+/* ==========================================================================
+   Build, QEMU & Real Hardware Section
+   ========================================================================== */
+.build-grid {
+  display: grid;
+  grid-template-columns: 1.2fr 0.8fr;
+  gap: 24px;
+  align-items: start;
+}
+
+.cmd-block {
+  background: #090b10;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  margin-bottom: 14px;
+}
+
+.cmd-block-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 14px;
+  background: #121620;
+  border-bottom: 1px solid var(--border-subtle);
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
+.copy-btn {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  padding: 3px 9px;
+  background: #1b2130;
+  color: var(--text-primary);
+  border: 1px solid var(--border-strong);
+  border-radius: 3px;
+  cursor: pointer;
+}
+
+.copy-btn:hover {
+  border-color: var(--ferrix-amber);
+  color: var(--ferrix-amber);
+}
+
+.cmd-pre {
+  padding: 14px 16px;
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  line-height: 1.6;
+  color: #e4eaf5;
+  overflow-x: auto;
+}
+
+.download-card {
+  background: linear-gradient(160deg, #161a25 0%, #0e1118 100%);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  padding: 26px;
+}
+
+.download-card h3 {
+  font-size: 1.25rem;
+  margin-bottom: 8px;
+}
+
+.tree-box {
+  margin-top: 18px;
+  background: #080a0e;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: 14px;
+  font-family: var(--font-mono);
+  font-size: 0.76rem;
+  line-height: 1.55;
+  color: var(--text-secondary);
+}
+
+/* ==========================================================================
+   Footer
+   ========================================================================== */
+.site-footer {
+  border-top: 1px solid var(--border-subtle);
+  padding: 40px 0;
+  background: #050608;
+  color: var(--text-muted);
+  font-size: 0.86rem;
+}
+
+.footer-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 18px;
+}
+
+.footer-links {
+  display: flex;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.footer-links a {
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+}
+
+.footer-links a:hover {
+  color: var(--ferrix-amber);
+}
+
+/* ==========================================================================
+   Responsive Design
+   ========================================================================== */
+@media (max-width: 1024px) {
+  .hero-grid,
+  .arch-layout,
+  .dev-grid,
+  .build-grid {
+    grid-template-columns: 1fr;
+  }
+  .shot-card.featured {
+    grid-column: span 2;
+    grid-template-columns: 1fr;
+  }
+  .shot-card.featured .shot-info {
+    border-left: none;
+    border-top: 1px solid var(--border-subtle);
+  }
+  .bento-grid,
+  .apps-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .bento-card.span-2 {
+    grid-column: span 2;
+  }
+  .synth-controls {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .release-box {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+  .nav-links {
+    display: none;
+  }
+}
+
+@media (max-width: 680px) {
+  .telemetry-strip {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .bento-grid,
+  .apps-grid,
+  .shots-grid,
+  .synth-controls,
+  .release-notes {
+    grid-template-columns: 1fr;
+  }
+  .bento-card.span-2,
+  .shot-card.featured {
+    grid-column: span 1;
+  }
+  .mem-seg {
+    grid-template-columns: 96px 1fr;
+  }
+  .mem-size {
+    display: none;
+  }
+  .syscall-row {
+    grid-template-columns: 44px 92px 1fr;
+    font-size: 0.76rem;
+  }
+}
+
+</style>
+</head>
+<body>
+
+<header class="site-header">
+  <div class="container nav-inner">
+    <a class="brand" href="#top" aria-label="Ferrix OS — на главную">
+      <span class="brand-mark" aria-hidden="true">
+        <svg width="18" height="18" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect x="2" y="1" width="14" height="3" fill="#FF5555"/>
+          <rect x="2" y="4" width="14" height="3" fill="#FFFF55"/>
+          <rect x="2" y="7" width="9" height="2" fill="#AA5500"/>
+          <rect x="2" y="9" width="14" height="3" fill="#AA5500"/>
+          <rect x="2" y="12" width="9" height="2" fill="#AA0000"/>
+          <rect x="2" y="14" width="9" height="3" fill="#AA0000"/>
+        </svg>
+      </span>
+      <span class="brand-name">FERRIX&nbsp;OS</span>
+    </a>
+    <nav class="nav-links" aria-label="Основная навигация">
+      <a href="#terminal">Терминал</a>
+      <a href="#architecture">Архитектура</a>
+      <a href="#screenshots">Скриншоты</a>
+      <a href="#synth-playground">Синтезатор</a>
+      <a href="#apps">Программы</a>
+      <a href="#dev">Разработка</a>
+      <a href="#build">Сборка</a>
+    </nav>
+    <div class="nav-actions">
+      <a class="btn btn-ghost btn-sm" href="https://github.com/Grushdeck/FerrixOS" target="_blank" rel="noopener">GitHub ↗</a>
+      <a class="btn btn-forge btn-sm js-release-link" href="https://github.com/Grushdeck/FerrixOS/releases/tag/release" target="_blank" rel="noopener">⬇ Скачать</a>
+    </div>
+  </div>
+</header>
+
+<main id="top">
+
+  <!-- ================= HERO + LIVE FSH TERMINAL ================= -->
+  <section class="hero" id="terminal">
+    <div class="container hero-grid">
+      <div>
+        <span class="eyebrow"><span class="eyebrow-dot"></span>16-bit Real Mode · x86 · NASM</span>
+        <h1 class="hero-title">Операционная система,<br>выкованная на <span class="forge-grad">голом железе</span></h1>
+        <p class="hero-lead">Ferrix OS — это полноценная ОС для IBM PC/AT, написанная на чистом ассемблере NASM. Ядро размером всего <strong>31.7 КБ</strong> грузится с дискеты или USB, работает на 8086/286+ и управляет VGA, FAT12/FAT16, PS/2-мышью и звуком напрямую — без единого байта лишнего кода.</p>
+        <div class="hero-ctas">
+          <a class="btn btn-forge js-release-link" href="https://github.com/Grushdeck/FerrixOS/releases/tag/release" target="_blank" rel="noopener">⬇ Скачать</a>
+          <a class="btn btn-terminal" href="#synth-playground">▶ Попробовать SYNTH.FAP</a>
+          <a class="btn btn-ghost" href="https://github.com/Grushdeck/FerrixOS" target="_blank" rel="noopener">Исходники на GitHub</a>
+        </div>
+      </div>
+
+      <div class="crt-frame" aria-label="Живой эмулятор оболочки fsh">
+        <div class="crt-topbar">
+          <span class="crt-leds"><span class="led led-red"></span><span class="led led-amber"></span><span class="led led-green"></span></span>
+          <span>FSH.FAP — Ferrix Shell · VGA B800:0000</span>
+          <span class="crt-meta"><span class="crt-tag">FAT16</span><span class="crt-tag">1000:0000</span></span>
+        </div>
+        <div class="terminal-screen scanlines" id="term-screen">
+          <canvas class="matrix-canvas" id="matrix-canvas"></canvas>
+          <div class="term-output" id="term-output"></div>
+          <div class="term-input-line">
+            <span class="term-prompt-user" id="prompt-user">neo@ferrix</span>
+            <span>&nbsp;</span>
+            <span class="term-prompt-path" id="prompt-path">~</span>
+            <span>&nbsp;</span>
+            <span class="term-prompt-arrow">»</span>
+            <span>&nbsp;</span>
+            <input class="term-input" id="term-input" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="Командная строка fsh">
+          </div>
+        </div>
+        <div class="terminal-quickbar">
+          <span class="quickbar-label">Попробовать:</span>
+          <button type="button" class="cmd-chip" data-cmd="fetch">fetch</button>
+          <button type="button" class="cmd-chip" data-cmd="ls -l /SYSTEM/SYSAPPS">ls -l</button>
+          <button type="button" class="cmd-chip" data-cmd="cat /TEST.ASM">cat /TEST.ASM</button>
+          <button type="button" class="cmd-chip" data-cmd="calc 2+3*(4-1)">calc</button>
+          <button type="button" class="cmd-chip" data-cmd="matrix">matrix</button>
+          <button type="button" class="cmd-chip" data-cmd="synth">synth</button>
+          <button type="button" class="cmd-chip" data-cmd="help">help</button>
+          <button type="button" class="cmd-chip" data-cmd="clear">clear</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= RELEASE RIBBON ================= -->
+  <div class="container release-ribbon">
+    <div class="release-box">
+      <div class="release-tag-col">
+        <span class="release-ver">Последний релиз</span>
+        <span class="release-date" id="release-date">16 ноября 2026</span>
+      </div>
+      <ul class="release-notes" id="release-notes">
+        <li>Оболочка вынесена в модуль <code>FSH.FAP</code>: редактор строки, история (16 команд, <code>/SYSTEM/FSH.HIS</code>), Tab-дополнение, <code>help</code></li>
+        <li>Утилиты — отдельные программы в <code>/SYSTEM/SYSAPPS/FSH</code>: ядро похудело с 35,7 до 31,7 КБ</li>
+        <li>MBR + раздел: <code>ferrix.img</code> теперь диск с таблицей разделов FAT16 для MBR и El Torito HDD</li>
+        <li><code>date</code> показывает день недели; исправлен верхний ряд клавиш в <code>synth</code></li>
+      </ul>
+      <a class="btn btn-forge js-release-link" href="https://github.com/Grushdeck/FerrixOS/releases/tag/release" target="_blank" rel="noopener">Заметки релиза →</a>
+    </div>
+  </div>
+
+  <!-- ================= CAPABILITIES BENTO ================= -->
+  <section class="section" id="capabilities">
+    <div class="container">
+      <div class="section-header">
+        <div>
+          <span class="eyebrow"><span class="eyebrow-dot"></span>Возможности</span>
+          <h2 class="section-title">Всё — от загрузчика до синтезатора</h2>
+          <p class="section-desc">Ferrix OS не прячет железо за абстракциями: каждая подсистема написана вручную и доступна программам через единый интерфейс FAPI.</p>
+        </div>
+      </div>
+      <div class="bento-grid">
+        <article class="bento-card span-2">
+          <div class="bento-kicker"><span>Ядро · KERNEL.SYS</span><span class="bento-addr">1000:0000</span></div>
+          <h3>31.7 КБ чистого real mode</h3>
+          <p>Единый бинарник на NASM (<code>org 0</code>, <code>DS=ES=SS=CS=1000h</code>): драйвер FAT12/FAT16 с кэшем 1 КБ, быстрый телетайп в <code>B800:0000</code>, PS/2-мышь, Sound Blaster 16 и Intel HD Audio, диспетчер <code>int 80h</code>. Загрузка — с 1.44 МБ дискеты или 32 МБ MBR/FAT16 диска.</p>
+          <div class="spec-pills"><span class="spec-pill">8086/286+</span><span class="spec-pill">FAT12 / FAT16 r/w</span><span class="spec-pill">VGA 80×25</span><span class="spec-pill">PS/2 mouse</span></div>
+        </article>
+        <article class="bento-card">
+          <div class="bento-kicker"><span>Звук</span><span class="bento-addr">3400h</span></div>
+          <h3>SB16 и Intel HD Audio</h3>
+          <p>Плеер <code>play</code> потоково читает WAV блоками по 32 КБ. HDA работает через PCI и Unreal Mode с ресэмплером 48 кГц — до ~50 минут музыки на диске 32 МБ.</p>
+          <div class="spec-pills"><span class="spec-pill">DMA 32 КБ ×2</span><span class="spec-pill">48 кГц / 16 бит</span></div>
+        </article>
+        <article class="bento-card">
+          <div class="bento-kicker"><span>Графика</span><span class="bento-addr">A000:0000</span></div>
+          <h3>VGA Mode 13h</h3>
+          <p>Просмотрщик <code>view</code> показывает BMP 8/24/32 бит в режиме 320×200×256 с палитрой R3-G3-B2 — напрямую в видеопамять, без BIOS.</p>
+          <div class="spec-pills"><span class="spec-pill">BMP до 250 КБ</span><span class="spec-pill">320×200×256</span></div>
+        </article>
+        <article class="bento-card">
+          <div class="bento-kicker"><span>GUI</span><span class="bento-addr">5000h+</span></div>
+          <h3>Оконная среда gui</h3>
+          <p>До трёх одновременных окон <code>.FAP</code> в изолированных сегментах по 64 КБ, виртуальные экраны через <code>FAPI_WM</code>, мышь и BMP-обои рабочего стола.</p>
+          <div class="spec-pills"><span class="spec-pill">3 окна</span><span class="spec-pill">64 КБ / окно</span></div>
+        </article>
+        <article class="bento-card">
+          <div class="bento-kicker"><span>Self-hosting</span><span class="bento-addr">IRON.FAP</span></div>
+          <h3>Собирает сама себя</h3>
+          <p>Компилятор <code>iron</code> (frasm → <code>.FAP</code>) работает внутри Ferrix OS и способен собрать любую программу репозитория — включая саму ОС.</p>
+          <div class="spec-pills"><span class="spec-pill">frasm</span><span class="spec-pill">.FAP flat-образ</span></div>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= ARCHITECTURE / MEMORY MAP ================= -->
+  <section class="section" id="architecture">
+    <div class="container">
+      <div class="section-header">
+        <div>
+          <span class="eyebrow"><span class="eyebrow-dot"></span>Архитектура</span>
+          <h2 class="section-title">Карта памяти 640 КБ</h2>
+          <p class="section-desc">Нажмите на сегмент, чтобы увидеть, что живёт по каждому адресу в реальном режиме. Это точная схема из <code>docs/INTERNALS.md</code>.</p>
+        </div>
+      </div>
+      <div class="arch-layout">
+        <div class="mem-bar-list" id="mem-bar-list" role="listbox" aria-label="Сегменты памяти"></div>
+        <aside class="mem-inspector" aria-live="polite">
+          <div class="inspector-addr" id="insp-addr">—</div>
+          <h3 class="inspector-title" id="insp-title">—</h3>
+          <p class="inspector-body" id="insp-body">—</p>
+          <pre class="inspector-meta" id="insp-meta">—</pre>
+        </aside>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= SCREENSHOTS ================= -->
+  <section class="section" id="screenshots">
+    <div class="container">
+      <div class="section-header">
+        <div>
+          <span class="eyebrow"><span class="eyebrow-dot"></span>Скриншоты</span>
+          <h2 class="section-title">Настоящий VGA, без эмуляции</h2>
+          <p class="section-desc">Официальные скриншоты из репозитория: рабочий стол gui, синтезатор, игры и часы. Нажмите на карточку, чтобы увеличить.</p>
+        </div>
+        <div class="gallery-controls">
+          <button type="button" class="toggle-btn" id="crt-toggle">▦ CRT-сканлайны: выкл</button>
+        </div>
+      </div>
+      <div class="shots-grid" id="shots-grid">
+        <article class="shot-card featured" tabindex="0">
+          <div class="shot-viewport"><img src="data:image/png;base64,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" alt="Рабочий стол Ferrix OS: окна FM, 2048 и CLOCK на синем фоне"></div>
+          <div class="shot-info">
+            <div><div class="shot-cmd">$ gui</div><h3 class="shot-title">Рабочий стол GUI</h3></div>
+            <p class="shot-desc">Три окна одновременно — файловый менеджер FM, игра 2048 и аналоговые часы CLOCK — поверх фирменного дithered-фонa. Каждое окно живёт в собственном 64-КБ сегменте.</p>
+          </div>
+        </article>
+        <article class="shot-card" tabindex="0">
+          <div class="shot-viewport"><img src="data:image/png;base64,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" alt="Интерфейс синтезатора SYNTH.FAP"></div>
+          <div class="shot-info">
+            <div><div class="shot-cmd">$ synth</div><h3 class="shot-title">SYNTH.FAP</h3></div>
+            <p class="shot-desc">8-голосный синтезатор на 24 кГц: две октавы ASCII-клавиатуры, ADSR-пресеты и фирменное эхо 341 мс.</p>
+          </div>
+        </article>
+        <article class="shot-card" tabindex="0">
+          <div class="shot-viewport"><img src="data:image/png;base64,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" alt="Игра Сапёр в Ferrix OS"></div>
+          <div class="shot-info">
+            <div><div class="shot-cmd">$ mines</div><h3 class="shot-title">Сапёр</h3></div>
+            <p class="shot-desc">Классический Minesweeper с управлением мышью и сохранением рекордов в файл .HI на диске.</p>
+          </div>
+        </article>
+        <article class="shot-card" tabindex="0">
+          <div class="shot-viewport"><img src="data:image/png;base64,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" alt="Игра 2048 в Ferrix OS"></div>
+          <div class="shot-info">
+            <div><div class="shot-cmd">$ 2048</div><h3 class="shot-title">2048</h3></div>
+            <p class="shot-desc">Головоломка 2048 в текстовом VGA-режиме: цифры, цвета и таблица рекордов — всё на чистом int 80h.</p>
+          </div>
+        </article>
+        <article class="shot-card" tabindex="0">
+          <div class="shot-viewport"><img src="data:image/png;base64,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" alt="Аналоговые часы CLOCK.FAP"></div>
+          <div class="shot-info">
+            <div><div class="shot-cmd">$ clock</div><h3 class="shot-title">CLOCK.FAP</h3></div>
+            <p class="shot-desc">Полноэкранные аналоговые часы со стрелками, крупными цифрами HH:MM:SS и датой с учётом часового пояса.</p>
+          </div>
+        </article>
+        <article class="shot-card" tabindex="0">
+          <div class="shot-viewport"><img src="data:image/png;base64,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" alt="Игра Pong в Ferrix OS"></div>
+          <div class="shot-info">
+            <div><div class="shot-cmd">$ pong</div><h3 class="shot-title">Pong</h3></div>
+            <p class="shot-desc">Аркадный Pong из набора игр на базе библиотеки game.inc — вместе со snake и tetris.</p>
+          </div>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= SYNTH PLAYGROUND ================= -->
+  <section class="section" id="synth-playground">
+    <div class="container">
+      <div class="section-header">
+        <div>
+          <span class="eyebrow"><span class="eyebrow-dot"></span>Интерактив</span>
+          <h2 class="section-title">SYNTH.FAP — прямо в браузере</h2>
+          <p class="section-desc">Веб-версия настоящего синтезатора Ferrix OS: 8 голосов, 4 формы волны, ADSR-пресеты и то самое эхо 341 мс. Играйте мышью или клавишами Z–/ и Q–P.</p>
+        </div>
+      </div>
+      <div class="synth-shell">
+        <div class="synth-titlebar">
+          <span>SYNTH.FAP — 8-voice polyphonic synth · 24 kHz · Intel HDA</span>
+          <button type="button" class="synth-opt" id="play-demo-sng">▶ play /DEMO.SNG</button>
+        </div>
+        <div class="synth-body">
+          <p class="synth-help">Клавиши: нижний ряд Z X C V B N M , . / · верхний ряд Q W E R T Y U I O P · чёрные — цифры и S D G H J L ;. Звук синтезируется через Web Audio API.</p>
+          <div class="synth-controls">
+            <div class="synth-param">
+              <span class="synth-param-lbl">WAVEFORM</span>
+              <div class="synth-btn-row">
+                <button type="button" class="synth-opt active" data-synth-wave="sine">SINE</button>
+                <button type="button" class="synth-opt" data-synth-wave="square">SQUARE</button>
+                <button type="button" class="synth-opt" data-synth-wave="sawtooth">SAW</button>
+                <button type="button" class="synth-opt" data-synth-wave="triangle">TRI</button>
+              </div>
+            </div>
+            <div class="synth-param">
+              <span class="synth-param-lbl">ADSR PRESET</span>
+              <div class="synth-btn-row">
+                <button type="button" class="synth-opt active" data-synth-env="piano">PIANO</button>
+                <button type="button" class="synth-opt" data-synth-env="organ">ORGAN</button>
+                <button type="button" class="synth-opt" data-synth-env="pad">PAD</button>
+                <button type="button" class="synth-opt" data-synth-env="pluck">PLUCK</button>
+              </div>
+            </div>
+            <div class="synth-param">
+              <span class="synth-param-lbl">OCTAVE: <span id="synth-oct-val">3</span></span>
+              <div class="synth-btn-row">
+                <button type="button" class="synth-opt" data-synth-oct="-1">− OCT</button>
+                <button type="button" class="synth-opt" data-synth-oct="1">+ OCT</button>
+              </div>
+            </div>
+            <div class="synth-param">
+              <span class="synth-param-lbl">ECHO 341 MS</span>
+              <div class="synth-btn-row">
+                <button type="button" class="synth-opt active" id="synth-echo-btn">ON (341ms)</button>
+              </div>
+            </div>
+          </div>
+          <div class="piano-rack">
+            <div class="piano-octave-row" id="piano-upper"></div>
+            <div class="piano-octave-row" id="piano-lower"></div>
+          </div>
+          <div class="synth-status">
+            <span>IRQ1 keyboard capture · HDA ring buffer 3400h</span>
+            <span>24 kHz · 8 voices · .SNG sequencer</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= APPS CATALOG ================= -->
+  <section class="section" id="apps">
+    <div class="container">
+      <div class="section-header">
+        <div>
+          <span class="eyebrow"><span class="eyebrow-dot"></span>Каталог</span>
+          <h2 class="section-title">Программы из /SYSTEM/SYSAPPS</h2>
+          <p class="section-desc">Каждая программа — плоский .FAP-образ в сегменте 4000:0000. Фильтруйте по категориям, чтобы найти нужную.</p>
+        </div>
+      </div>
+      <div class="filter-tabs" role="tablist">
+        <button type="button" class="filter-tab active" data-filter="all">Все</button>
+        <button type="button" class="filter-tab" data-filter="system">Система</button>
+        <button type="button" class="filter-tab" data-filter="gui">GUI и файлы</button>
+        <button type="button" class="filter-tab" data-filter="dev">Разработка</button>
+        <button type="button" class="filter-tab" data-filter="media">Медиа</button>
+        <button type="button" class="filter-tab" data-filter="games">Игры</button>
+      </div>
+      <div class="apps-grid" id="apps-grid"></div>
+    </div>
+  </section>
+
+  <!-- ================= DEV TOOLCHAIN + SYSCALLS ================= -->
+  <section class="section" id="dev">
+    <div class="container">
+      <div class="section-header">
+        <div>
+          <span class="eyebrow"><span class="eyebrow-dot"></span>Разработка</span>
+          <h2 class="section-title">ferpy → frasm → IRON.FAP</h2>
+          <p class="section-desc">Пишите на Python-подобном синтаксисе, компилируйте в нативный 16-битный код и собирайте прямо внутри Ferrix OS. Интерфейс программ — 38 вызовов <code>int 80h</code>.</p>
+        </div>
+      </div>
+      <div class="dev-grid">
+        <div class="code-panel">
+          <div class="code-tabs" role="tablist">
+            <button type="button" class="code-tab active" data-snippet="ferpy">hello.fpy</button>
+            <button type="button" class="code-tab" data-snippet="frasm">hello.asm</button>
+            <button type="button" class="code-tab" data-snippet="faplayout">.FAP layout</button>
+          </div>
+          <pre class="code-body" id="code-display"></pre>
+          <div class="pipeline-steps">
+            <span>hello.fpy</span><span class="pipe-arrow">→</span><span>tools/fpy.py</span><span class="pipe-arrow">→</span><span>HELLO.ASM</span><span class="pipe-arrow">→</span><span>iron</span><span class="pipe-arrow">→</span><span>HELLO.FAP</span>
+          </div>
+        </div>
+        <div class="syscall-panel">
+          <div class="syscall-toolbar">
+            <input class="syscall-search" id="syscall-search" type="search" placeholder="Поиск syscall: puts, file, mouse…" aria-label="Поиск системных вызовов">
+            <span class="syscall-count" id="syscall-count">38 / 38</span>
+          </div>
+          <div class="syscall-list" id="syscall-list"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= BUILD ================= -->
+  <section class="section" id="build">
+    <div class="container">
+      <div class="section-header">
+        <div>
+          <span class="eyebrow"><span class="eyebrow-dot"></span>Запуск</span>
+          <h2 class="section-title">Соберите и запустите за минуту</h2>
+          <p class="section-desc">Скачайте готовый образ или соберите Ferrix OS скриптом <code>build-img.sh</code> (нужны nasm, dosfstools, mtools и qemu) — он сам соберёт ядро, программы, образ диска и запустит QEMU.</p>
+        </div>
+      </div>
+      <div class="build-grid">
+        <div>
+          <div class="cmd-block">
+            <div class="cmd-block-head"><span>QEMU · готовый образ</span><button type="button" class="copy-btn" data-copy="build-cmd-1">Копировать</button></div>
+            <pre class="cmd-pre" id="build-cmd-1">unzip ferrix-img.zip
+qemu-system-i386 -drive file=ferrix.img,format=raw,if=ide -boot c \
+  -device sb16 -device intel-hda -device hda-output</pre>
+          </div>
+          <div class="cmd-block">
+            <div class="cmd-block-head"><span>Сборка из исходников (build-img.sh)</span><button type="button" class="copy-btn" data-copy="build-cmd-2">Копировать</button></div>
+            <pre class="cmd-pre" id="build-cmd-2">git clone https://github.com/Grushdeck/FerrixOS
+cd FerrixOS
+./build-img.sh            # соберёт ferrix.img и запустит QEMU
+./build-img.sh floppy     # дискета 1.44 МБ (os.img)
+NORUN=1 ./build-img.sh    # только собрать, без запуска</pre>
+          </div>
+          <div class="cmd-block">
+            <div class="cmd-block-head"><span>Первая программа на ferpy</span><button type="button" class="copy-btn" data-copy="build-cmd-3">Копировать</button></div>
+            <pre class="cmd-pre" id="build-cmd-3">python3 tools/fpy.py examples/hello.fpy -o HELLO.ASM
+# внутри Ferrix OS:
+# neo@ferrix ~ » iron /HELLO.ASM /HELLO.FAP</pre>
+          </div>
+        </div>
+        <aside class="download-card">
+          <h3>Готовый образ</h3>
+          <p style="color:var(--text-secondary);font-size:0.92rem;">Один ZIP-файл (~206 КБ) с гибридным образом: дискета 1.44 МБ, MBR/FAT16 диск 32 МБ для USB и El Torito ISO для CD.</p>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:16px;">
+            <a class="btn btn-forge js-release-link" href="https://github.com/Grushdeck/FerrixOS/releases/tag/release" target="_blank" rel="noopener">⬇ Скачать</a>
+            <a class="btn btn-ghost" href="https://github.com/Grushdeck/FerrixOS" target="_blank" rel="noopener">Репозиторий ↗</a>
+          </div>
+          <pre class="tree-box">/  KERNEL.SYS   31.7 KB
+/  SYSTEM/
+     SYSAPPS/  *.FAP
+     USER.CFG  AUTOEXEC.SH
+/  TEST.ASM  HELLO.FPY
+/  BALL.CH8  DEMO.SNG</pre>
+        </aside>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer class="site-footer">
+  <div class="container footer-inner">
+    <span>FERRIX OS · MIT License · © 2026 Grushdeck</span>
+    <nav class="footer-links">
+      <a href="https://github.com/Grushdeck/FerrixOS" target="_blank" rel="noopener">GitHub</a>
+      <a class="js-release-link" href="https://github.com/Grushdeck/FerrixOS/releases/tag/release" target="_blank" rel="noopener">Релизы</a>
+      <a href="#terminal">Терминал</a>
+      <a href="#dev">FAPI int 80h</a>
+    </nav>
+  </div>
+</footer>
+
+<!-- Lightbox -->
+<div class="lightbox" id="lightbox" role="dialog" aria-modal="true" aria-label="Просмотр скриншота">
+  <div class="lightbox-inner">
+    <div class="lightbox-bar">
+      <span id="lightbox-title">Ferrix OS</span>
+      <button type="button" class="copy-btn" id="lightbox-close">Закрыть ✕</button>
+    </div>
+    <div class="lightbox-img-wrap"><img id="lightbox-img" src="" alt="Увеличенный скриншот Ferrix OS"></div>
+  </div>
+</div>
+
+<script>
+/* ==========================================================================
+   FERRIX OS — Interactive Website Logic
+   Includes:
+   1. Authentic fsh Shell Emulator (FAT16 VFS, Tab-complete, History, Matrix)
+   2. Real-Mode 640 KB Memory Map Inspector (docs/INTERNALS.md)
+   3. Web Audio 8-Voice SYNTH.FAP Preview (4 waves, ADSR, 341ms Echo, DEMO.SNG)
+   4. Filterable /SYSTEM/SYSAPPS Catalog & Searchable int 80h FAPI Syscall Table
+   5. Screenshot CRT Scanlines & Zoom Lightbox
+   ========================================================================== */
+
+(function () {
+  'use strict';
+
+  const bootTimestamp = Date.now();
+
+  /* ------------------------------------------------------------------------
+     1. VIRTUAL FAT16 FILESYSTEM & FSH TERMINAL SIMULATOR
+     ------------------------------------------------------------------------ */
+  const VFS = {
+    '/': {
+      type: 'dir',
+      entries: {
+        'KERNEL.SYS': { type: 'file', size: 32460, content: '[Binary 16-bit Real Mode Kernel Image — loaded at 1000:0000]' },
+        'SYSTEM': { type: 'dir' },
+        'BALL.CH8': { type: 'file', size: 82, content: '[CHIP-8 ROM binary: bouncing ball demo — run with: micro /BALL.CH8]' },
+        'DEMO.SNG': { type: 'file', size: 136, content: 'FXSNG v1 | 16 note events | 24 kHz synth sequence (run: play /DEMO.SNG)' },
+        'TEST.ASM': {
+          type: 'file',
+          size: 924,
+          content:
+`; TEST.ASM - frasm demo for iron
+; iron /TEST.ASM /T.FAP
+    bits 16
+    org 0x100
+API_INT    equ 0x80
+F_PUTS     equ 2
+F_GETKEY   equ 3
+F_PRINTDEC equ 0Bh
+
+    db "FAPI", 1, 0
+    dw start
+    times 8 db 0
+
+start:
+    mov si, msg
+    call puts
+    xor ax, ax
+    mov cx, 10
+.lp:
+    add ax, cx
+    loop .lp
+    mov dx, ax
+    mov ah, F_PRINTDEC
+    int API_INT
+    mov ah, 0
+    int 0x80`
+        },
+        'TEST2.ASM': {
+          type: 'file',
+          size: 743,
+          content: `; TEST2.ASM - interactive frasm example\n; Assemble inside Ferrix OS: iron /TEST2.ASM /OUT.FAP`
+        },
+        'HELLO.FPY': {
+          type: 'file',
+          size: 231,
+          content:
+`# hello.fpy - first ferpy program
+print("Hello from ferpy!")
+name = args()
+if len(name) == 0:
+    print("What is your name? ", end="")
+    name = input()
+print("Hello,", name)
+for i in range(1, 6):
+    print(i, "*", i, "=", i * i)`
+        }
+      }
+    },
+    '/SYSTEM': {
+      type: 'dir',
+      entries: {
+        'USER.CFG': {
+          type: 'file',
+          size: 48,
+          content: 'NAME=neo\nTZ=+07\nRTC=UTC\nSAVER=MATRIX:05'
+        },
+        'AUTOEXEC.SH': {
+          type: 'file',
+          size: 64,
+          content: '# Ferrix OS startup script\necho Ferrix environment initialized.'
+        },
+        'FSH.HIS': {
+          type: 'file',
+          size: 128,
+          content: 'fetch\nls -l\nfm\ngui\nsynth'
+        },
+        'SYSAPPS': { type: 'dir' }
+      }
+    },
+    '/SYSTEM/SYSAPPS': {
+      type: 'dir',
+      entries: {
+        'FSH': { type: 'dir' },
+        '2048.FAP': { type: 'file', size: 1424 },
+        'CALC.FAP': { type: 'file', size: 1746 },
+        'CLOCK.FAP': { type: 'file', size: 5401 },
+        'FERRAMP.FAP': { type: 'file', size: 4820 },
+        'FM.FAP': { type: 'file', size: 4763 },
+        'FSH.FAP': { type: 'file', size: 3890 },
+        'GUI.FAP': { type: 'file', size: 9640 },
+        'HELLO.FAP': { type: 'file', size: 288 },
+        'IRON.FAP': { type: 'file', size: 11420 },
+        'MICRO.FAP': { type: 'file', size: 2940 },
+        'MINES.FAP': { type: 'file', size: 2112 },
+        'MONO.FAP': { type: 'file', size: 6380 },
+        'PAINT.FAP': { type: 'file', size: 2490 },
+        'PONG.FAP': { type: 'file', size: 1820 },
+        'SNAKE.FAP': { type: 'file', size: 1560 },
+        'SYNTH.FAP': { type: 'file', size: 5180 },
+        'TETRIS.FAP': { type: 'file', size: 2340 }
+      }
+    },
+    '/SYSTEM/SYSAPPS/FSH': {
+      type: 'dir',
+      entries: {
+        'ASCII.FAP': { type: 'file', size: 312 },
+        'BANNER.FAP': { type: 'file', size: 980 },
+        'BIN.FAP': { type: 'file', size: 420 },
+        'CPU.FAP': { type: 'file', size: 890 },
+        'CREDITS.FAP': { type: 'file', size: 480 },
+        'DATE.FAP': { type: 'file', size: 510 },
+        'ECHO.FAP': { type: 'file', size: 260 },
+        'FETCH.FAP': { type: 'file', size: 1840 },
+        'HEX.FAP': { type: 'file', size: 390 },
+        'MATRIX.FAP': { type: 'file', size: 1120 },
+        'MEM.FAP': { type: 'file', size: 350 },
+        'OSINFO.FAP': { type: 'file', size: 290 },
+        'TIME.FAP': { type: 'file', size: 440 }
+      }
+    }
+  };
+
+  let shellState = {
+    user: 'neo',
+    cwd: '/',
+    tz: '+7',
+    history: ['fetch', 'ls -l', 'help'],
+    histIdx: 3
+  };
+
+  const ALL_COMMANDS = [
+    'help', 'ls', 'dir', 'cd', 'pwd', 'cat', 'touch', 'write', 'mkdir', 'rm',
+    'fetch', 'cpu', 'mem', 'date', 'time', 'tz', 'whoami', 'user', 'osinfo',
+    'credits', 'banner', 'echo', 'calc', 'hex', 'bin', 'ascii', 'matrix',
+    'synth', 'gui', 'fm', 'mines', '2048', 'clock', 'pong', 'iron', 'micro', 'clear'
+  ];
+
+  const termScreen = document.getElementById('term-screen');
+  const termOutput = document.getElementById('term-output');
+  const termInput = document.getElementById('term-input');
+  const promptUser = document.getElementById('prompt-user');
+  const promptPath = document.getElementById('prompt-path');
+  const matrixCanvas = document.getElementById('matrix-canvas');
+
+  function escHtml(str) {
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+  }
+
+  function normalizePath(p) {
+    if (!p || p === '~' || p === '/') return '/';
+    let raw = p.trim().replace(/\\/g, '/');
+    if (raw.startsWith('~/')) raw = '/' + raw.slice(2);
+    let parts = (raw.startsWith('/') ? '' : shellState.cwd).split('/').filter(Boolean);
+    for (const seg of raw.split('/')) {
+      if (!seg || seg === '.') continue;
+      if (seg === '..') parts.pop();
+      else parts.push(seg.toUpperCase());
+    }
+    return '/' + parts.join('/');
+  }
+
+  function resolveDir(pathStr) {
+    const norm = normalizePath(pathStr);
+    return VFS[norm] ? { path: norm, node: VFS[norm] } : null;
+  }
+
+  function resolveEntry(pathStr) {
+    const norm = normalizePath(pathStr);
+    if (norm === '/') return { parent: '/', name: '/', entry: { type: 'dir' }, full: '/' };
+    const idx = norm.lastIndexOf('/');
+    const parentPath = idx === 0 ? '/' : norm.slice(0, idx);
+    const name = norm.slice(idx + 1);
+    const parent = VFS[parentPath];
+    if (!parent || !parent.entries[name]) return null;
+    return { parent: parentPath, name, entry: parent.entries[name], full: norm };
+  }
+
+  function updatePromptUI() {
+    promptUser.textContent = shellState.user + '@ferrix';
+    promptPath.textContent = shellState.cwd === '/' ? '~' : '~' + shellState.cwd;
+  }
+
+  function appendHtml(html) {
+    const div = document.createElement('div');
+    div.innerHTML = html;
+    termOutput.appendChild(div);
+    termScreen.scrollTop = termScreen.scrollHeight;
+  }
+
+  function getBootBannerHtml() {
+    return (
+`<span class="c-08">==========================================================</span>
+<span class="c-0c">       ███████ ███████ ██████  ██████  ███████ ██   ██</span>
+<span class="c-0e">       ██      ██      ██   ██ ██   ██   ███    ██ ██ </span>
+<span class="c-0e">       █████   █████   ██████  ██████    ███     ███  </span>
+<span class="c-06">       ██      ██      ██  ██  ██  ██    ███    ██ ██ </span>
+<span class="c-04">       ██      ███████ ██   ██ ██   ██ ███████ ██   ██</span>
+<span class="c-0f">                     |Ferrix OS|</span>
+<span class="c-08">        ======================================</span>
+<span class="c-07">        =        |16-bit Real Mode |         =</span>
+<span class="c-08">        ======================================</span>
+<span class="c-08">==========================================================</span>
+<span class="c-0a">Good evening, ${escHtml(shellState.user)}! Welcome back to Ferrix OS.</span>
+<span class="c-07">Ready. Type '<span class="c-0e">help</span>' or '<span class="c-0b">fetch</span>' — Tab completes, ↑/↓ history.</span>`
+    );
+  }
+
+  function getFetchHtml() {
+    const upSec = Math.max(1, Math.floor((Date.now() - bootTimestamp) / 1000));
+    const hrs = Math.floor(upSec / 3600);
+    const mins = Math.floor((upSec % 3600) / 60);
+    const secs = upSec % 60;
+    const upStr = hrs > 0 ? `${hrs} hours, ${mins} mins` : `${mins} mins, ${secs} secs`;
+
+    const rows = [
+      ['<span class="c-0c">  ████████████████</span>', `<span class="c-0a">${escHtml(shellState.user)}@ferrix</span>`],
+      ['<span class="c-0c">  ████████████████</span>', `<span class="c-08">-------------------</span>`],
+      ['<span class="c-0c">  ████            </span>', `<span class="c-0b">OS: </span><span class="c-07">Ferrix OS x86 (16-bit)</span>`],
+      ['<span class="c-0e">  ████            </span>', `<span class="c-0b">Host: </span><span class="c-07">IBM PC/AT compatible (BIOS 11/16/26)</span>`],
+      ['<span class="c-0e">  ████████████    </span>', `<span class="c-0b">Kernel: </span><span class="c-07">ferrix-realmode (31.7 KB)</span>`],
+      ['<span class="c-0e">  ████████████    </span>', `<span class="c-0b">Uptime: </span><span class="c-07">${upStr}</span>`],
+      ['<span class="c-06">  ████            </span>', `<span class="c-0b">Shell: </span><span class="c-07">fsh (FSH.FAP)</span>`],
+      ['<span class="c-06">  ████            </span>', `<span class="c-0b">Resolution: </span><span class="c-07">80x25 (text, 16 colors)</span>`],
+      ['<span class="c-04">  ████            </span>', `<span class="c-0b">Terminal: </span><span class="c-07">VGA console (B800:0000)</span>`],
+      ['<span class="c-04">  ████            </span>', `<span class="c-0b">CPU: </span><span class="c-07">Intel i486DX / QEMU Virtual x86</span>`],
+      ['<span class="c-08">  f e r r i x     </span>', `<span class="c-0b">Memory: </span><span class="c-07">640 KB base + 31744 KB ext</span>`],
+      ['                  ', `<span class="c-0b">Disk (C:): </span><span class="c-07">412 KB / 32487 KB (FAT16)</span>`]
+    ];
+    return rows.map(([l, r]) => `${l}    ${r}`).join('\n');
+  }
+
+  /* Matrix Binary Wave Screensaver inside Terminal */
+  let matrixAnimId = null;
+  function startMatrixSaver() {
+    matrixCanvas.classList.add('active');
+    const rect = termScreen.getBoundingClientRect();
+    matrixCanvas.width = rect.width || 620;
+    matrixCanvas.height = rect.height || 390;
+    const ctx = matrixCanvas.getContext('2d');
+    const cols = Math.floor(matrixCanvas.width / 12);
+    const phase = Array.from({ length: cols }, (_, i) => Math.sin(i * 0.35) * 8 + Math.random() * 6);
+    let tick = 0;
+
+    function draw() {
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.28)';
+      ctx.fillRect(0, 0, matrixCanvas.width, matrixCanvas.height);
+      ctx.font = '12px monospace';
+      tick += 0.09;
+      for (let x = 0; x < cols; x++) {
+        const waveHeight = Math.floor(
+          10 + 7 * Math.sin(tick + x * 0.28 + phase[x] * 0.2) + 4 * Math.cos(tick * 0.7 - x * 0.15)
+        );
+        for (let y = 0; y < waveHeight; y++) {
+          const bit = Math.random() > 0.5 ? '1' : '0';
+          ctx.fillStyle = y === waveHeight - 1 ? '#ffffff' : (y > waveHeight - 4 ? '#55ff55' : '#00aa00');
+          ctx.fillText(bit, x * 12 + 4, matrixCanvas.height - y * 14 - 22);
+        }
+      }
+      ctx.fillStyle = '#55ffff';
+      ctx.fillText('MATRIX.FAP — binary wave saver (click or press any key to exit)', 12, 18);
+      matrixAnimId = requestAnimationFrame(draw);
+    }
+    draw();
+  }
+
+  function stopMatrixSaver() {
+    if (matrixAnimId) {
+      cancelAnimationFrame(matrixAnimId);
+      matrixAnimId = null;
+      matrixCanvas.classList.remove('active');
+      termInput.focus();
+    }
+  }
+
+  matrixCanvas.addEventListener('click', stopMatrixSaver);
+  window.addEventListener('keydown', (e) => {
+    if (matrixAnimId) {
+      e.preventDefault();
+      stopMatrixSaver();
+    }
+  });
+
+  function execCommand(rawLine) {
+    const trimmed = rawLine.trim();
+    const promptEcho = `<span class="term-prompt-user">${escHtml(shellState.user)}@ferrix</span> <span class="term-prompt-path">${escHtml(shellState.cwd === '/' ? '~' : '~' + shellState.cwd)}</span> <span class="term-prompt-arrow">»</span> <span class="c-0f">${escHtml(rawLine)}</span>`;
+    appendHtml(promptEcho);
+
+    if (!trimmed) return;
+
+    shellState.history.push(trimmed);
+    shellState.histIdx = shellState.history.length;
+
+    const parts = trimmed.split(/\s+/);
+    const cmd = parts[0].toLowerCase();
+    const args = parts.slice(1);
+
+    switch (cmd) {
+      case 'clear':
+        termOutput.innerHTML = '';
+        appendHtml(getBootBannerHtml());
+        break;
+
+      case 'help': {
+        const topic = (args[0] || '').toLowerCase();
+        if (!topic) {
+          appendHtml(
+`<span class="c-0e">Ferrix Shell (fsh) — группы команд:</span>
+  <span class="c-0b">help files</span>   ls dir cd pwd cat touch write mkdir rm fm mono
+  <span class="c-0b">help system</span>  fetch cpu mem date time tz whoami user osinfo credits banner
+  <span class="c-0b">help media</span>   view play ferramp synth
+  <span class="c-0b">help tools</span>   calc paint iron echo hex bin ascii matrix clear
+  <span class="c-0b">help games</span>   snake tetris mines 2048 pong micro
+<span class="c-08">Подсказка: попробуйте </span><span class="c-0a">fetch</span><span class="c-08">, </span><span class="c-0a">ls -l /SYSTEM/SYSAPPS</span><span class="c-08">, </span><span class="c-0a">cat /TEST.ASM</span><span class="c-08">, </span><span class="c-0a">matrix</span><span class="c-08"> или </span><span class="c-0a">synth</span>`
+          );
+        } else if (topic === 'files') {
+          appendHtml(`<span class="c-0e">[files]</span> ls [-l] [PATH], cd PATH, pwd, cat PATH, touch PATH, write PATH text, mkdir PATH, rm PATH`);
+        } else if (topic === 'system') {
+          appendHtml(`<span class="c-0e">[system]</span> fetch, cpu, mem, date, time, tz, whoami, user NAME, osinfo, credits, banner`);
+        } else if (topic === 'media') {
+          appendHtml(`<span class="c-0e">[media]</span> view BMP, play WAV/SNG [sb|hda], ferramp, synth (откроет интерактивный синтезатор ниже!)`);
+        } else if (topic === 'tools') {
+          appendHtml(`<span class="c-0e">[tools]</span> calc EXPR, hex N, bin N, ascii, echo TEXT, matrix, iron SRC.ASM OUT.FAP`);
+        } else if (topic === 'games') {
+          appendHtml(`<span class="c-0e">[games]</span> snake, tetris, mines, 2048, pong, micro /BALL.CH8`);
+        } else {
+          appendHtml(`<span class="c-07">Справка по '${escHtml(topic)}': введите команду в терминале для демонстрации.</span>`);
+        }
+        break;
+      }
+
+      case 'fetch':
+        appendHtml(getFetchHtml());
+        break;
+
+      case 'banner':
+        appendHtml(getBootBannerHtml());
+        break;
+
+      case 'osinfo':
+        appendHtml(`OS: Ferrix OS\nArch: x86 16-bit\nFS: FAT12/FAT16 (r/w)`);
+        break;
+
+      case 'credits':
+        appendHtml(
+`<span class="c-0b">░================================================░</span>
+<span class="c-0b">░</span>                    <span class="c-0e">CREDITS</span>                     <span class="c-0b">░</span>
+<span class="c-0b">░================================================░</span>
+<span class="c-0b">░</span>  OS Name: Ferrix OS                            <span class="c-0b">░</span>
+<span class="c-0b">░</span>  Language: NASM Assembly                       <span class="c-0b">░</span>
+<span class="c-0b">░</span>  Made by: <span class="c-0a">Grushdeck</span>                            <span class="c-0b">░</span>
+<span class="c-0b">░================================================░</span>`
+        );
+        break;
+
+      case 'whoami':
+        appendHtml(escHtml(shellState.user));
+        break;
+
+      case 'user':
+        if (!args[0]) {
+          appendHtml(escHtml(shellState.user));
+        } else {
+          shellState.user = args[0].slice(0, 16);
+          updatePromptUI();
+          appendHtml(`<span class="c-0a">User set to '${escHtml(shellState.user)}' (saved to /SYSTEM/USER.CFG)</span>`);
+        }
+        break;
+
+      case 'pwd':
+        appendHtml(escHtml(shellState.cwd));
+        break;
+
+      case 'cd': {
+        const target = resolveDir(args[0] || '/');
+        if (!target) {
+          appendHtml(`<span class="c-0c">cd: directory not found: ${escHtml(args[0])}</span>`);
+        } else {
+          shellState.cwd = target.path;
+          updatePromptUI();
+        }
+        break;
+      }
+
+      case 'ls':
+      case 'dir': {
+        let longFmt = false;
+        let pathArg = '';
+        for (const a of args) {
+          if (a === '-l') longFmt = true;
+          else pathArg = a;
+        }
+        const dirObj = resolveDir(pathArg || shellState.cwd);
+        if (!dirObj) {
+          appendHtml(`<span class="c-0c">ls: path not found</span>`);
+          break;
+        }
+        const names = Object.keys(dirObj.node.entries).sort((a, b) => {
+          const da = dirObj.node.entries[a].type === 'dir' ? 0 : 1;
+          const db = dirObj.node.entries[b].type === 'dir' ? 0 : 1;
+          return da - db || a.localeCompare(b);
+        });
+        if (longFmt) {
+          const lines = names.map((n) => {
+            const item = dirObj.node.entries[n];
+            if (item.type === 'dir') {
+              return `  <span class="c-0b">${n.padEnd(14, ' ')}</span> <span class="c-0e">&lt;DIR&gt;</span>`;
+            }
+            const color = n.endsWith('.FAP') ? 'c-0a' : (n.endsWith('.SYS') ? 'c-0c' : 'c-07');
+            return `  <span class="${color}">${n.padEnd(14, ' ')}</span> ${String(item.size || 0).padStart(7, ' ')} B`;
+          });
+          appendHtml(lines.join('\n'));
+        } else {
+          let out = '';
+          names.forEach((n, idx) => {
+            const item = dirObj.node.entries[n];
+            const tag = item.type === 'dir'
+              ? `<span class="c-0b">${(n + '/').padEnd(16, ' ')}</span>`
+              : `<span class="${n.endsWith('.FAP') ? 'c-0a' : 'c-07'}">${n.padEnd(16, ' ')}</span>`;
+            out += tag + ((idx + 1) % 3 === 0 ? '\n' : '  ');
+          });
+          appendHtml(out.replace(/\n$/, ''));
+        }
+        break;
+      }
+
+      case 'cat': {
+        if (!args[0]) {
+          appendHtml(`<span class="c-0c">usage: cat PATH</span>`);
+          break;
+        }
+        const found = resolveEntry(args[0]);
+        if (!found || found.entry.type === 'dir') {
+          appendHtml(`<span class="c-0c">cat: file not found: ${escHtml(args[0])}</span>`);
+        } else {
+          appendHtml(`<span class="c-07">${escHtml(found.entry.content || `[Binary .FAP executable — ${found.entry.size} bytes]`)}</span>`);
+        }
+        break;
+      }
+
+      case 'touch': {
+        if (!args[0]) { appendHtml(`<span class="c-0c">usage: touch FILE</span>`); break; }
+        const norm = normalizePath(args[0]);
+        const idx = norm.lastIndexOf('/');
+        const pPath = idx === 0 ? '/' : norm.slice(0, idx);
+        const fName = norm.slice(idx + 1);
+        if (!VFS[pPath]) { appendHtml(`<span class="c-0c">touch: invalid path</span>`); break; }
+        VFS[pPath].entries[fName] = { type: 'file', size: 0, content: '' };
+        appendHtml(`<span class="c-0a">Created ${escHtml(norm)}</span>`);
+        break;
+      }
+
+      case 'write': {
+        if (args.length < 2) { appendHtml(`<span class="c-0c">usage: write FILE text...</span>`); break; }
+        const norm = normalizePath(args[0]);
+        const idx = norm.lastIndexOf('/');
+        const pPath = idx === 0 ? '/' : norm.slice(0, idx);
+        const fName = norm.slice(idx + 1);
+        const txt = args.slice(1).join(' ');
+        if (!VFS[pPath]) { appendHtml(`<span class="c-0c">write: invalid path</span>`); break; }
+        VFS[pPath].entries[fName] = { type: 'file', size: txt.length, content: txt };
+        appendHtml(`<span class="c-0a">Wrote ${txt.length} bytes to ${escHtml(norm)}</span>`);
+        break;
+      }
+
+      case 'mkdir': {
+        if (!args[0]) { appendHtml(`<span class="c-0c">usage: mkdir DIR</span>`); break; }
+        const norm = normalizePath(args[0]);
+        const idx = norm.lastIndexOf('/');
+        const pPath = idx === 0 ? '/' : norm.slice(0, idx);
+        const dName = norm.slice(idx + 1);
+        if (!VFS[pPath]) { appendHtml(`<span class="c-0c">mkdir: parent not found</span>`); break; }
+        VFS[pPath].entries[dName] = { type: 'dir' };
+        VFS[norm] = { type: 'dir', entries: {} };
+        appendHtml(`<span class="c-0a">Directory created: ${escHtml(norm)}</span>`);
+        break;
+      }
+
+      case 'rm': {
+        if (!args[0]) { appendHtml(`<span class="c-0c">usage: rm PATH</span>`); break; }
+        const found = resolveEntry(args[0]);
+        if (!found || found.full === '/' || found.full === '/KERNEL.SYS') {
+          appendHtml(`<span class="c-0c">rm: cannot remove '${escHtml(args[0])}'</span>`);
+        } else {
+          delete VFS[found.parent].entries[found.name];
+          delete VFS[found.full];
+          appendHtml(`<span class="c-07">Removed ${escHtml(found.full)}</span>`);
+        }
+        break;
+      }
+
+      case 'cpu':
+        appendHtml(`Vendor  : GenuineIntel (CPUID supported)\nFamily  : 6  Model: 6  Stepping: 3\nMode    : 16-bit x86 Real Mode (8086/286+ compatible)`);
+        break;
+
+      case 'mem':
+        appendHtml(`Base memory     : 640 KB (BIOS int 12h)\nExtended memory : 31744 KB (BIOS int 15h AH=88h)\nKernel segment  : 1000:0000 (31.7 KB)\nApp .FAP seg    : 4000:0000 (64 KB flat)`);
+        break;
+
+      case 'date': {
+        const now = new Date();
+        const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+        const yyyy = now.getFullYear();
+        const mm = String(now.getMonth() + 1).padStart(2, '0');
+        const dd = String(now.getDate()).padStart(2, '0');
+        appendHtml(`${days[now.getDay()]}, ${yyyy}-${mm}-${dd} (UTC${shellState.tz})`);
+        break;
+      }
+
+      case 'time': {
+        const now = new Date();
+        appendHtml(`${now.toTimeString().slice(0, 8)} (UTC${shellState.tz})`);
+        break;
+      }
+
+      case 'tz':
+        if (args[0]) shellState.tz = args[0];
+        appendHtml(`Timezone: UTC${escHtml(shellState.tz)} (RTC=UTC)`);
+        break;
+
+      case 'echo':
+        appendHtml(escHtml(args.join(' ')));
+        break;
+
+      case 'hex': {
+        const n = parseInt(args[0], 10);
+        if (Number.isNaN(n)) appendHtml(`<span class="c-0c">usage: hex DECIMAL_NUMBER</span>`);
+        else appendHtml(`0x${(n >>> 0).toString(16).toUpperCase()}`);
+        break;
+      }
+
+      case 'bin': {
+        const n = parseInt(args[0], 10);
+        if (Number.isNaN(n)) appendHtml(`<span class="c-0c">usage: bin DECIMAL_NUMBER</span>`);
+        else appendHtml(`0b${(n >>> 0).toString(2)}`);
+        break;
+      }
+
+      case 'ascii': {
+        let rows = [];
+        for (let r = 32; r < 128; r += 16) {
+          let line = `<span class="c-08">${r.toString(16).toUpperCase().padStart(2, '0')}:</span> `;
+          for (let c = 0; c < 16; c++) line += escHtml(String.fromCharCode(r + c)) + ' ';
+          rows.push(line);
+        }
+        appendHtml(rows.join('\n'));
+        break;
+      }
+
+      case 'calc': {
+        const expr = args.join('');
+        if (!expr) {
+          appendHtml(`<span class="c-0e">CALC.FAP:</span> пример: <span class="c-0b">calc 2+3*(4-1)</span> или <span class="c-0b">calc 0x100+64</span>`);
+          break;
+        }
+        if (/^[0-9xXa-fA-F+\-*/()%&\s|^<>]+$/.test(expr)) {
+          try {
+            // Safe integer expression evaluator
+            const res = Function(`"use strict"; return Math.trunc(${expr});`)();
+            appendHtml(`<span class="c-0a">= ${res}</span> <span class="c-08">(0x${(res >>> 0).toString(16).toUpperCase()})</span>`);
+          } catch (_) {
+            appendHtml(`<span class="c-0c">Syntax error in expression</span>`);
+          }
+        } else {
+          appendHtml(`<span class="c-0c">Invalid characters in expression</span>`);
+        }
+        break;
+      }
+
+      case 'matrix':
+        startMatrixSaver();
+        break;
+
+      case 'synth':
+        appendHtml(`<span class="c-0a">Launching SYNTH.FAP (24 kHz, 8 voices, Intel HDA)...</span>`);
+        document.getElementById('synth-playground')?.scrollIntoView({ behavior: 'smooth' });
+        break;
+
+      case 'gui':
+      case 'fm':
+      case 'mines':
+      case '2048':
+      case 'clock':
+      case 'pong':
+        appendHtml(`<span class="c-0a">Opening ${cmd.toUpperCase()}.FAP showcase...</span>`);
+        document.getElementById('screenshots')?.scrollIntoView({ behavior: 'smooth' });
+        break;
+
+      case 'iron':
+        appendHtml(`<span class="c-0e">IRON.FAP self-hosting frasm assembler</span>\nusage: iron SOURCE.ASM OUT.FAP — собирает любую программу репозитория прямо внутри Ferrix OS!`);
+        break;
+
+      case 'micro':
+        appendHtml(`<span class="c-0a">MICRO.FAP CHIP-8 Emulator</span> — 35 opcodes, 64x32 half-block display (▀/▄/█), ~730 ops/sec.`);
+        break;
+
+      default:
+        appendHtml(`<span class="c-0c">Unknown command or .FAP not found: '${escHtml(cmd)}'. Type 'help'.</span>`);
+    }
+  }
+
+  /* Terminal Initialization & Keyboard Handling */
+  if (termOutput && termInput) {
+    appendHtml(getBootBannerHtml());
+    updatePromptUI();
+
+    termScreen.addEventListener('click', () => {
+      if (!window.getSelection().toString()) termInput.focus();
+    });
+
+    termInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        const val = termInput.value;
+        termInput.value = '';
+        execCommand(val);
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        if (shellState.histIdx > 0) {
+          shellState.histIdx--;
+          termInput.value = shellState.history[shellState.histIdx] || '';
+        }
+      } else if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        if (shellState.histIdx < shellState.history.length - 1) {
+          shellState.histIdx++;
+          termInput.value = shellState.history[shellState.histIdx] || '';
+        } else {
+          shellState.histIdx = shellState.history.length;
+          termInput.value = '';
+        }
+      } else if (e.key === 'Escape') {
+        termInput.value = '';
+      } else if (e.key === 'Tab') {
+        e.preventDefault();
+        const cur = termInput.value;
+        const tokens = cur.split(/\s+/);
+        if (tokens.length <= 1) {
+          const prefix = tokens[0].toLowerCase();
+          const matches = ALL_COMMANDS.filter((c) => c.startsWith(prefix));
+          if (matches.length === 1) termInput.value = matches[0] + ' ';
+          else if (matches.length > 1) appendHtml(`<span class="c-08">${matches.join('  ')}</span>`);
+        } else {
+          const last = tokens[tokens.length - 1];
+          const slashIdx = last.lastIndexOf('/');
+          const dirPart = slashIdx >= 0 ? last.slice(0, slashIdx + 1) : '';
+          const namePrefix = (slashIdx >= 0 ? last.slice(slashIdx + 1) : last).toUpperCase();
+          const dirObj = resolveDir(dirPart || shellState.cwd);
+          if (dirObj) {
+            const matches = Object.keys(dirObj.node.entries).filter((k) => k.startsWith(namePrefix));
+            if (matches.length === 1) {
+              const m = matches[0];
+              const suffix = dirObj.node.entries[m].type === 'dir' ? '/' : ' ';
+              tokens[tokens.length - 1] = dirPart + m + suffix;
+              termInput.value = tokens.join(' ');
+            } else if (matches.length > 1) {
+              appendHtml(`<span class="c-08">${matches.join('  ')}</span>`);
+            }
+          }
+        }
+      }
+    });
+
+    document.querySelectorAll('.cmd-chip').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const cmd = btn.getAttribute('data-cmd');
+        execCommand(cmd);
+        termInput.focus();
+      });
+    });
+  }
+
+  /* ------------------------------------------------------------------------
+     2. REAL-MODE 640 KB MEMORY MAP INSPECTOR (docs/INTERNALS.md)
+     ------------------------------------------------------------------------ */
+  const MEMORY_SEGMENTS = [
+    {
+      addr: '0000:0500 / 7C00',
+      title: 'Загрузчик boot.asm и BPB тома',
+      size: '512 B + BIOS',
+      desc: 'Загрузочный сектор определяет FAT12 или FAT16 по числу кластеров в BPB, сохраняет номер загрузочного диска DL по адресу 0000:0500, записывает реальную геометрию BIOS в BPB (0000:7C18/7C1A) и читает KERNEL.SYS по цепочке кластеров в 1000:0000.',
+      meta: 'Контракт передачи управления:\n• 0000:0500 ← DL (BIOS boot drive)\n• 0000:7C00 ← BPB (не затирается до vol_init)\n• jmp 1000:0000'
+    },
+    {
+      addr: '1000:0000 – FFFE',
+      title: 'Ядро KERNEL.SYS и стек ядра',
+      size: '31.7 КБ + стек',
+      desc: 'Единый бинарник ядра на NASM (org 0, DS=ES=SS=CS=1000h). Содержит драйвер чтения/записи FAT12/FAT16 с окном кэша 1 КБ, телетайп прямого вывода, PS/2-мышь, драйверы SB16 и Intel HD Audio (через PCI + Unreal Mode) и диспетчер int 80h.',
+      meta: '• Вход: 1000:0000\n• Стек ядра: 1000:FFFE (верх сегмента)\n• Аварийный режим: EMERGENCY MODE, если нет FSH.FAP'
+    },
+    {
+      addr: '2000:0000 – 3000h',
+      title: 'Буферы каталога и сектора записи FAT',
+      size: '16 КБ + буфер',
+      desc: 'Сегмент 2000:0000 хранит текущий каталог (до 32 секторов = 512 записей FAT16) и буфер чтения данных. Сегмент 3000:0000 выделен под буфер записи сектора. Грязное окно FAT синхронно сбрасывается во все копии таблицы FAT.',
+      meta: '• Поддержка вложенных каталогов (цепочки кластеров)\n• Потоковое копирование cp любого размера\n• Чтение длинных имён LFN в ls -l'
+    },
+    {
+      addr: '3400h / 3800h / 3C00h',
+      title: 'Кольцевые буферы Intel HD Audio и BDL',
+      size: '2×16 КБ + BDL',
+      desc: 'Два 16-битных стерео PCM-буфера по 16 КБ и Buffer Descriptor List (BDL) для PCI-контроллера Intel HD Audio. Область изолирована от сегментов окон gui, что позволяет синтезатору synth и звуку работать прямо в оконном режиме.',
+      meta: '• PCI scan: порты CF8h/CFCh (класс 04.03)\n• Unreal Mode: чтение MMIO выше 1 МБ через FS (4 ГБ)\n• Поток 48 кГц / 16 бит / стерео (или 24 кГц для synth)'
+    },
+    {
+      addr: '4000:0000 – FFFE',
+      title: 'Сегмент внешних программ .FAP',
+      size: '64 КБ flat',
+      desc: 'Плоский образ Ferrix App Image (по аналогии с .COM): по смещению 0000h лежит версия API (4), по 0080h — аргументы ASCIIZ, по 0100h — сигнатура "FAPI" и точка входа. Все сегментные регистры CS=DS=ES=SS=4000h, стек SP=FFFEh.',
+      meta: '• Прямой доступ ко всем 64 КБ и видеопамяти\n• Выход: int 80h (AH=00h) или retf\n• Цепочка запуска программ через FAPI_EXEC (AH=1Ah)'
+    },
+    {
+      addr: '5000h / 7000h / 8000h',
+      title: 'Изолированные сегментов окон GUI.FAP',
+      size: '3 × 64 КБ',
+      desc: 'Оконный менеджер gui загружает до трёх .FAP-приложений одновременно в собственные 64-килобайтные сегменты с виртуальными текстовыми экранами через системный вызов FAPI_WM (AH=21h), композитируя окна с мышью и BMP-обоями.',
+      meta: '• До 3 одновременных окон (например fm + 2048 + clock)\n• Поддержка сворачивания [_], закрытия [x] и фокуса мышью'
+    },
+    {
+      addr: '6000h – 9800:0000',
+      title: 'Буфер графики view и DMA Sound Blaster 16',
+      size: '~250 КБ / 2×32 КБ',
+      desc: 'Область 6000:0000–9F000 принимает BMP-файлы до ~250 КБ для просмотрщика view. В верхней части (9000:0000 и 9800:0000) лежат два 32-КБ DMA-буфера плеера play (SB16 / ресэмплер HDA) — выше сегментов окон gui.',
+      meta: '• Потоковое чтение WAV с диска блоками по 32 КБ\n• До ~50 минут музыки 11 кГц PCM на 32 МБ FAT16-диске'
+    },
+    {
+      addr: 'A000:0000 & B800:0000',
+      title: 'Видеопамять VGA Mode 13h и консоль 80×25',
+      size: 'VGA VRAM',
+      desc: 'A000:0000 используется в графическом режиме 320×200×256 (просмотр BMP 8/24/32 бит с палитрой R3-G3-B2). B800:0000 — текстовый экран 80×25 (16 цветов): ядро пишет напрямую через собственный быстрый телетайп без багов BIOS с атрибутами цвета.',
+      meta: '• Инверсный аппаратно-независимый курсор PS/2-мыши\n• Поддержка inline-переключения цветов в FAPI_PUTS'
+    }
+  ];
+
+  const memListEl = document.getElementById('mem-bar-list');
+  const inspAddr = document.getElementById('insp-addr');
+  const inspTitle = document.getElementById('insp-title');
+  const inspBody = document.getElementById('insp-body');
+  const inspMeta = document.getElementById('insp-meta');
+
+  function selectMemSeg(index) {
+    const seg = MEMORY_SEGMENTS[index];
+    if (!seg) return;
+    document.querySelectorAll('.mem-seg').forEach((el, idx) => {
+      el.classList.toggle('active', idx === index);
+    });
+    inspAddr.textContent = seg.addr;
+    inspTitle.textContent = seg.title;
+    inspBody.textContent = seg.desc;
+    inspMeta.textContent = seg.meta;
+  }
+
+  if (memListEl) {
+    MEMORY_SEGMENTS.forEach((seg, idx) => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'mem-seg' + (idx === 1 ? ' active' : '');
+      btn.innerHTML = `
+        <span class="mem-addr">${escHtml(seg.addr.split(' ')[0])}</span>
+        <span class="mem-title">${escHtml(seg.title)}</span>
+        <span class="mem-size">${escHtml(seg.size)}</span>
+      `;
+      btn.addEventListener('click', () => selectMemSeg(idx));
+      memListEl.appendChild(btn);
+    });
+    selectMemSeg(1);
+  }
+
+  /* ------------------------------------------------------------------------
+     3. WEB AUDIO INTERACTIVE SYNTH.FAP PREVIEW
+     ------------------------------------------------------------------------ */
+  let audioCtx = null;
+  let synthCfg = {
+    wave: 'sine',
+    octave: 3,
+    env: 'piano',
+    echo: true
+  };
+
+  const ADSR = {
+    piano: { a: 0.008, d: 0.22, s: 0.28, r: 0.32 },
+    organ: { a: 0.015, d: 0.05, s: 0.85, r: 0.08 },
+    pad:   { a: 0.14,  d: 0.25, s: 0.70, r: 0.55 },
+    pluck: { a: 0.004, d: 0.14, s: 0.05, r: 0.16 }
+  };
+
+  function ensureAudio() {
+    if (!audioCtx) {
+      const Ctx = window.AudioContext || window.webkitAudioContext;
+      if (Ctx) audioCtx = new Ctx();
+    }
+    if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+    return audioCtx;
+  }
+
+  function playSynthNote(semitoneOffset, durationSec = 0.42, keyEl = null) {
+    const ctx = ensureAudio();
+    if (!ctx) return;
+
+    const midi = (synthCfg.octave + 1) * 12 + semitoneOffset;
+    const freq = 440 * Math.pow(2, (midi - 69) / 12);
+    const now = ctx.currentTime;
+    const env = ADSR[synthCfg.env] || ADSR.piano;
+
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = synthCfg.wave;
+    osc.frequency.setValueAtTime(freq, now);
+
+    gain.gain.setValueAtTime(0.0001, now);
+    gain.gain.linearRampToValueAtTime(0.22, now + env.a);
+    gain.gain.linearRampToValueAtTime(0.22 * env.s, now + env.a + env.d);
+    gain.gain.setValueAtTime(0.22 * env.s, now + durationSec);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + durationSec + env.r);
+
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+
+    // Authentic 341 ms 1/2 decay echo from apps/synth.asm!
+    if (synthCfg.echo) {
+      const delay = ctx.createDelay(1.0);
+      const fb = ctx.createGain();
+      const wet = ctx.createGain();
+      delay.delayTime.value = 0.341;
+      fb.gain.value = 0.45;
+      wet.gain.value = 0.48;
+      gain.connect(delay);
+      delay.connect(fb);
+      fb.connect(delay);
+      delay.connect(wet);
+      wet.connect(ctx.destination);
+    }
+
+    osc.start(now);
+    osc.stop(now + durationSec + env.r + 0.05);
+
+    if (keyEl) {
+      keyEl.classList.add('playing');
+      setTimeout(() => keyEl.classList.remove('playing'), 220);
+    }
+  }
+
+  function buildSynthKeyboard() {
+    const upperRow = document.getElementById('piano-upper');
+    const lowerRow = document.getElementById('piano-lower');
+    if (!upperRow || !lowerRow) return;
+
+    const upperWhites = [
+      { k: 'Q', n: 'C', s: 12 }, { k: 'W', n: 'D', s: 14 }, { k: 'E', n: 'E', s: 16 },
+      { k: 'R', n: 'F', s: 17 }, { k: 'T', n: 'G', s: 19 }, { k: 'Y', n: 'A', s: 21 },
+      { k: 'U', n: 'B', s: 23 }, { k: 'I', n: 'C+', s: 24 }, { k: 'O', n: 'D+', s: 26 },
+      { k: 'P', n: 'E+', s: 28 }
+    ];
+    const upperBlacks = [
+      { k: '2', s: 13, left: '6.8%' }, { k: '3', s: 15, left: '16.8%' },
+      { k: '5', s: 18, left: '36.8%' }, { k: '6', s: 20, left: '46.8%' }, { k: '7', s: 22, left: '56.8%' },
+      { k: '9', s: 25, left: '76.8%' }, { k: '0', s: 27, left: '86.8%' }
+    ];
+
+    const lowerWhites = [
+      { k: 'Z', n: 'C', s: 0 }, { k: 'X', n: 'D', s: 2 }, { k: 'C', n: 'E', s: 4 },
+      { k: 'V', n: 'F', s: 5 }, { k: 'B', n: 'G', s: 7 }, { k: 'N', n: 'A', s: 9 },
+      { k: 'M', n: 'B', s: 11 }, { k: ',', n: 'C+', s: 12 }, { k: '.', n: 'D+', s: 14 },
+      { k: '/', n: 'E+', s: 16 }
+    ];
+    const lowerBlacks = [
+      { k: 'S', s: 1, left: '6.8%' }, { k: 'D', s: 3, left: '16.8%' },
+      { k: 'G', s: 6, left: '36.8%' }, { k: 'H', s: 8, left: '46.8%' }, { k: 'J', s: 10, left: '56.8%' },
+      { k: 'L', s: 13, left: '76.8%' }, { k: ';', s: 15, left: '86.8%' }
+    ];
+
+    const keyMap = new Map();
+
+    function populateRow(container, whites, blacks) {
+      whites.forEach((w) => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'pkey-white';
+        btn.dataset.semi = w.s;
+        btn.innerHTML = `<span class="note-sub">${w.n}</span><span>${w.k}</span>`;
+        btn.addEventListener('mousedown', () => playSynthNote(w.s, 0.36, btn));
+        container.appendChild(btn);
+        keyMap.set(w.k.toLowerCase(), { s: w.s, el: btn });
+      });
+      blacks.forEach((b) => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'pkey-black';
+        btn.style.left = b.left;
+        btn.dataset.semi = b.s;
+        btn.textContent = b.k;
+        btn.addEventListener('mousedown', (ev) => {
+          ev.stopPropagation();
+          playSynthNote(b.s, 0.36, btn);
+        });
+        container.appendChild(btn);
+        keyMap.set(b.k.toLowerCase(), { s: b.s, el: btn });
+      });
+    }
+
+    populateRow(upperRow, upperWhites, upperBlacks);
+    populateRow(lowerRow, lowerWhites, lowerBlacks);
+
+    // Demo melody button (/DEMO.SNG preview)
+    const demoBtn = document.getElementById('play-demo-sng');
+    if (demoBtn) {
+      demoBtn.addEventListener('click', () => {
+        const notes = [0, 4, 7, 12, 16, 12, 7, 4, 0, 7, 12, 19, 16, 12];
+        notes.forEach((semi, idx) => {
+          setTimeout(() => {
+            const match = [...document.querySelectorAll('[data-semi]')].find(
+              (el) => Number(el.dataset.semi) === semi
+            );
+            playSynthNote(semi, 0.24, match);
+          }, idx * 145);
+        });
+      });
+    }
+
+    // Parameter buttons
+    document.querySelectorAll('[data-synth-wave]').forEach((b) => {
+      b.addEventListener('click', () => {
+        synthCfg.wave = b.dataset.synthWave;
+        document.querySelectorAll('[data-synth-wave]').forEach((x) => x.classList.toggle('active', x === b));
+      });
+    });
+
+    document.querySelectorAll('[data-synth-env]').forEach((b) => {
+      b.addEventListener('click', () => {
+        synthCfg.env = b.dataset.synthEnv;
+        document.querySelectorAll('[data-synth-env]').forEach((x) => x.classList.toggle('active', x === b));
+      });
+    });
+
+    document.querySelectorAll('[data-synth-oct]').forEach((b) => {
+      b.addEventListener('click', () => {
+        synthCfg.octave = Math.min(6, Math.max(1, synthCfg.octave + Number(b.dataset.synthOct)));
+        const disp = document.getElementById('synth-oct-val');
+        if (disp) disp.textContent = String(synthCfg.octave);
+      });
+    });
+
+    const echoBtn = document.getElementById('synth-echo-btn');
+    if (echoBtn) {
+      echoBtn.addEventListener('click', () => {
+        synthCfg.echo = !synthCfg.echo;
+        echoBtn.textContent = synthCfg.echo ? 'ON (341ms)' : 'OFF';
+        echoBtn.classList.toggle('active', synthCfg.echo);
+      });
+    }
+  }
+  buildSynthKeyboard();
+
+  /* ------------------------------------------------------------------------
+     4. SOFTWARE CATALOG (/SYSTEM/SYSAPPS) FILTER
+     ------------------------------------------------------------------------ */
+  const APPS_DATA = [
+    { bin: 'fsh', fap: 'FSH.FAP', cat: 'system', desc: 'Модульная командная оболочка с историей (16 команд в FSH.HIS), редактированием строки, Tab-дополнением и скриптами .SH.', usage: 'fsh · help [group]' },
+    { bin: 'gui', fap: 'GUI.FAP', cat: 'gui', desc: 'Оконная среда рабочего стола: до 3 одновременных окон в отдельных сегментах 64 КБ, драйвер PS/2-мыши и BMP-обои.', usage: 'gui' },
+    { bin: 'fm', fap: 'FM.FAP', cat: 'gui', desc: 'Двухпанельный файловый менеджер в стиле Norton Commander: мышь, пометки файлов, горячие клавиши F1–F10, запуск .FAP/.CH8.', usage: 'fm' },
+    { bin: 'iron', fap: 'IRON.FAP', cat: 'dev', desc: 'Многопроходный self-hosting компилятор ассемблера frasm → .FAP прямо внутри Ferrix OS (способен собрать сам себя!).', usage: 'iron /TEST.ASM /OUT.FAP' },
+    { bin: 'ferpy', fap: 'tools/fpy.py', cat: 'dev', desc: 'Компилируемый язык с синтаксисом Python: переводит .fpy в нативный 16-битный ассемблер frasm без интерпретатора и ВМ.', usage: 'python3 tools/fpy.py app.fpy' },
+    { bin: 'mono', fap: 'MONO.FAP', cat: 'gui', desc: 'Полноэкранный текстовый редактор для кода и заметок (файлы до 58 КБ) с удобной статусной строкой и навигацией.', usage: 'mono /SYSTEM/AUTOEXEC.SH' },
+    { bin: 'synth', fap: 'SYNTH.FAP', cat: 'media', desc: '8-голосный полифонический синтезатор реального времени (24 кГц, Intel HDA, перехват IRQ1, ADSR, эхо, секвенсор .SNG).', usage: 'synth [TUNE.SNG]' },
+    { bin: 'ferramp', fap: 'FERRAMP.FAP', cat: 'media', desc: 'Музыкальный плеер со списком воспроизведения WAV и SNG, автопереходом треков и управлением мышью.', usage: 'ferramp [DIR|SONG.WAV]' },
+    { bin: 'view & play', fap: 'KERNEL.SYS', cat: 'media', desc: 'Просмотр BMP (8/24/32 бит в VGA 13h) и потоковое воспроизведение PCM WAV через Sound Blaster 16 или Intel HD Audio.', usage: 'view ART.BMP · play SONG.WAV' },
+    { bin: 'paint', fap: 'PAINT.FAP', cat: 'gui', desc: '16-цветный пиксельный графический редактор 80×23 с поддержкой мыши и сохранением в стандартный 8-битный BMP 320×92.', usage: 'paint [IMAGE.BMP]' },
+    { bin: 'calc', fap: 'CALC.FAP', cat: 'gui', desc: '32-битный целочисленный калькулятор со скобками, приоритетами и 0x-hex: оконный режим с мышью или режим командной строки.', usage: 'calc [-g] [2+3*(4-1)]' },
+    { bin: 'clock', fap: 'CLOCK.FAP', cat: 'system', desc: 'Полноэкранные аналоговые часы со стрелками, крупными цифровыми часами HH:MM:SS и датой с учётом часового пояса.', usage: 'clock · saver clock 5' },
+    { bin: 'fetch & fsh-utils', fap: 'SYSAPPS/FSH/*', cat: 'system', desc: 'Набор модульных системных утилит: fetch, cpu, mem, date, time, hex, bin, ascii, matrix, banner, osinfo, credits.', usage: 'fetch · cpu · matrix' },
+    { bin: 'micro', fap: 'MICRO.FAP', cat: 'games', desc: 'Полноценный эмулятор CHIP-8 (все 35 опкодов, полублочная графика 64×32 в текстовом режиме, настройка скорости и палитры).', usage: 'micro /BALL.CH8 -c A' },
+    { bin: 'snake · tetris · mines · 2048 · pong', fap: '*.FAP + game.inc', cat: 'games', desc: 'Пять аркадных и логических игр в едином стиле на базе библиотеки game.inc с сохранением таблиц рекордов (.HI) на диск.', usage: 'mines · 2048 · tetris' }
+  ];
+
+  const appsGrid = document.getElementById('apps-grid');
+  function renderApps(filter) {
+    if (!appsGrid) return;
+    appsGrid.innerHTML = '';
+    APPS_DATA.filter((a) => filter === 'all' || a.cat === filter).forEach((app) => {
+      const card = document.createElement('div');
+      card.className = 'app-card';
+      card.innerHTML = `
+        <div>
+          <div class="app-head">
+            <span class="app-bin">${escHtml(app.bin)}</span>
+            <span class="app-fap">${escHtml(app.fap)}</span>
+          </div>
+          <p class="app-desc" style="margin-top:10px;">${escHtml(app.desc)}</p>
+        </div>
+        <div class="app-usage">$ ${escHtml(app.usage)}</div>
+      `;
+      appsGrid.appendChild(card);
+    });
+  }
+  renderApps('all');
+
+  document.querySelectorAll('.filter-tab').forEach((tab) => {
+    tab.addEventListener('click', () => {
+      document.querySelectorAll('.filter-tab').forEach((t) => t.classList.toggle('active', t === tab));
+      renderApps(tab.dataset.filter);
+    });
+  });
+
+  /* ------------------------------------------------------------------------
+     5. TOOLCHAIN CODE VIEWER & FAPI int 80h SYSCALL EXPLORER
+     ------------------------------------------------------------------------ */
+  const CODE_SNIPPETS = {
+    ferpy:
+`# examples/hello.fpy — Python-синтаксис → нативный 16-бит код
+# Сборка: python3 tools/fpy.py examples/hello.fpy -o HELLO.ASM
+# Затем в самой Ferrix OS: iron /HELLO.ASM /HELLO.FAP
+
+print("Hello from ferpy!")
+name = args()
+if len(name) == 0:
+    print("What is your name? ", end="")
+    name = input()
+
+print("Hello,", name)
+for i in range(1, 6):
+    print(i, "*", i, "=", i * i)`,
+
+    frasm:
+`; Минимальная .FAP-программа на NASM / frasm (docs/FAPI.md)
+; Собирается как на ПК (nasm -f bin), так и внутри ОС:
+; neo@ferrix ~ » iron /HELLO.ASM /HELLO.FAP
+
+%include "fapi.inc"
+    FAPI_HEADER            ; 0100h: "FAPI", v1, dw start
+
+start:
+    FAPI_PRINT msg         ; int 80h, AH=02h (puts с поддержкой цвета)
+    FAPI FAPI_GETKEY       ; int 80h, AH=03h -> AX
+    FAPI_QUIT              ; int 80h, AH=00h
+
+msg db 1, 0x0A, "Hello from Ferrix OS!", 13, 10, 0`,
+
+    faplayout:
+`; Формат плоского образа FAPI (.FAP) в сегменте CS=DS=ES=SS=4000h
+; Стек при старте: SP = FFFEh, DS:SI -> ASCIIZ аргументы
+
+0000h  dw 4                ; Версия API ядра (FAPI v4)
+0080h  db "arg1 arg2", 0   ; Аргументы командной строки (ASCIIZ)
+0100h  db "FAPI"           ; Сигнатура образа (4 байта)
+0104h  db 1, 0             ; Версия заголовка и флаги
+0106h  dw entry            ; Точка входа (обычно 0110h)
+0108h  times 8 db 0        ; Резерв заголовка
+0110h  ...                 ; Машинный 16-битный код и данные (до 64 КБ)`
+  };
+
+  const codeDisplay = document.getElementById('code-display');
+  if (codeDisplay) {
+    codeDisplay.textContent = CODE_SNIPPETS.ferpy;
+    document.querySelectorAll('.code-tab').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.code-tab').forEach((b) => b.classList.toggle('active', b === btn));
+        codeDisplay.textContent = CODE_SNIPPETS[btn.dataset.snippet] || '';
+      });
+    });
+  }
+
+  const SYSCALLS = [
+    ['00h', 'exit', 'Завершить программу .FAP и вернуть управление'],
+    ['01h', 'putc', 'AL = символ — вывод символа на экран'],
+    ['02h', 'puts', 'DS:SI = ASCIIZ; маркер 01h + attr меняет цвет на лету'],
+    ['03h', 'getkey', '→ AX (AL = ASCII, AH = скан-код клавиши)'],
+    ['04h', 'keyhit', '→ AX (0 = буфер пуст), ZF — неблокирующий опрос'],
+    ['05h', 'setcursor', 'DH = строка, DL = столбец (80×25)'],
+    ['06h', 'getcursor', '→ DH = строка, DL = столбец'],
+    ['07h', 'cls', 'Очистить экран'],
+    ['08h', 'readfile', 'DS:SI путь, ES:DI буфер, CX макс → AX прочитано байт'],
+    ['09h', 'writefile', 'DS:SI путь, ES:DI данные, CX длина → запись в FAT12/16'],
+    ['0Ah', 'ticks', '→ DX:AX системный таймер 18.2 Гц'],
+    ['0Bh', 'printdec', 'DX = беззнаковое 16-битное число → десятичный вывод'],
+    ['0Ch', 'getcwd', 'ES:DI ← текущий путь ASCIIZ ("/" для корня)'],
+    ['0Dh', 'sleep', 'CX = число тиков ожидания'],
+    ['0Eh', 'uiredraw', 'Очистить экран и нарисовать фирменный баннер ОС'],
+    ['0Fh', 'rand', '→ AX 16-битное псевдослучайное число'],
+    ['10h', 'cursor', 'CX = 2000h скрыть / 0607h показать текстовый курсор'],
+    ['11h', 'localtime', '→ CH:CL:DH время и DL день с учётом часового пояса'],
+    ['12h', 'username', 'ES:DI ← имя пользователя из USER.CFG'],
+    ['13h', 'beep', 'Короткий звуковой сигнал через PC Speaker'],
+    ['14h', 'kbflush', 'Очистить буфер клавиатуры'],
+    ['15h', 'putat', 'DH,DL позиция, AL символ, BL цвет — прямо в B800h'],
+    ['16h', 'fillrect', 'DH,DL угол, CH×CL размер, AL символ, BL атрибут'],
+    ['17h', 'putsat', 'DH,DL позиция, DS:SI строка ASCIIZ, BL атрибут'],
+    ['18h', 'readdir', 'DS:SI путь, ES:DI буфер → 32-байтные записи каталога FAT'],
+    ['19h', 'shell', 'DS:SI встроенная команда ядра (mkdir, rm, cp, mv...)'],
+    ['1Ah', 'exec', 'DS:SI запуск другой .FAP после выхода с возвратом (для fm/fsh)'],
+    ['1Bh', 'stat', 'DS:SI путь → DX:AX размер файла, CL атрибуты FAT'],
+    ['1Ch', 'readat', 'Потоковое чтение сектора BX файла любого размера'],
+    ['1Dh', 'append', 'DS:SI путь, ES:DI данные, CX длина — дописать в конец'],
+    ['1Eh', 'mouse', '→ CX столбец, DX строка, AL кнопки, AH=1 если есть PS/2 мышь'],
+    ['1Fh', 'mouseshow', 'CL=1 показать / 0 скрыть текстовый курсор мыши'],
+    ['20h', 'chdir', 'DS:SI путь → сменить рабочий каталог оболочки'],
+    ['21h', 'wm', 'Служебный интерфейс оконного менеджера GUI.FAP (виртуальные экраны)'],
+    ['22h', 'audio', 'Кольцевой PCM-поток Intel HD Audio (24/48 кГц, двойной буфер)'],
+    ['23h', 'date', '→ CX год, DH месяц, DL день, AL день недели (с учётом TZ)'],
+    ['24h', 'sysinfo', 'Занятость тома FAT12/16, часовой пояс RTC и тики старта системы'],
+    ['25h', 'waitkey', 'Ожидание клавиши с автозапуском экранной заставки saver']
+  ];
+
+  const sysList = document.getElementById('syscall-list');
+  const sysSearch = document.getElementById('syscall-search');
+  const sysCount = document.getElementById('syscall-count');
+
+  function renderSyscalls(q) {
+    if (!sysList) return;
+    const term = (q || '').trim().toLowerCase();
+    const filtered = SYSCALLS.filter(
+      ([ah, name, desc]) =>
+        !term || ah.toLowerCase().includes(term) || name.toLowerCase().includes(term) || desc.toLowerCase().includes(term)
+    );
+    sysList.innerHTML = filtered
+      .map(
+        ([ah, name, desc]) => `
+        <div class="syscall-row">
+          <span class="sys-ah">AH=${ah}</span>
+          <span class="sys-name">${escHtml(name)}</span>
+          <span class="sys-regs">${escHtml(desc)}</span>
+        </div>`
+      )
+      .join('');
+    if (sysCount) sysCount.textContent = `${filtered.length} / ${SYSCALLS.length}`;
+  }
+  renderSyscalls('');
+  if (sysSearch) {
+    sysSearch.addEventListener('input', () => renderSyscalls(sysSearch.value));
+  }
+
+  /* ------------------------------------------------------------------------
+     6. CRT SCANLINE TOGGLE, LIGHTBOX & COPY BUTTONS
+     ------------------------------------------------------------------------ */
+  const crtToggle = document.getElementById('crt-toggle');
+  const shotsContainer = document.getElementById('shots-grid');
+  if (crtToggle && shotsContainer) {
+    crtToggle.addEventListener('click', () => {
+      const active = shotsContainer.classList.toggle('shots-crt');
+      crtToggle.classList.toggle('active', active);
+    });
+  }
+
+  const lightbox = document.getElementById('lightbox');
+  const lightboxImg = document.getElementById('lightbox-img');
+  const lightboxTitle = document.getElementById('lightbox-title');
+  const lightboxClose = document.getElementById('lightbox-close');
+
+  document.querySelectorAll('.shot-card').forEach((card) => {
+    card.addEventListener('click', () => {
+      const img = card.querySelector('img');
+      const title = card.querySelector('.shot-title')?.textContent || 'Ferrix OS';
+      if (img && lightbox && lightboxImg) {
+        lightboxImg.src = img.src;
+        lightboxTitle.textContent = title;
+        lightbox.classList.add('open');
+      }
+    });
+  });
+
+  if (lightbox && lightboxClose) {
+    lightboxClose.addEventListener('click', () => lightbox.classList.remove('open'));
+    lightbox.addEventListener('click', (e) => {
+      if (e.target === lightbox) lightbox.classList.remove('open');
+    });
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') lightbox.classList.remove('open');
+    });
+  }
+
+  document.querySelectorAll('.copy-btn').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const targetId = btn.getAttribute('data-copy');
+      const pre = document.getElementById(targetId);
+      if (!pre) return;
+      navigator.clipboard?.writeText(pre.textContent.trim());
+      const orig = btn.textContent;
+      btn.textContent = 'Скопировано ✓';
+      setTimeout(() => { btn.textContent = orig; }, 1600);
+    });
+  });
+
+  /* ------------------------------------------------------------------------
+     7. LIVE GITHUB CHANGELOG & RELEASE SYNC
+     Автоматически подтягивает изменения из CHANGELOG.md (ветка main) и
+     последнего GitHub Release (releases/latest) — показывается более свежий
+     источник, а также обновляются дата и ссылки на скачивание.
+     ------------------------------------------------------------------------ */
+  const GH_REPO = 'Grushdeck/FerrixOS';
+  const GH_API = 'https://api.github.com/repos/' + GH_REPO;
+  const GH_RAW_CHANGELOG = 'https://raw.githubusercontent.com/' + GH_REPO + '/main/CHANGELOG.md';
+  const GH_CACHE_KEY = 'ferrix-gh-cache-v3';
+  const GH_CACHE_TTL = 3 * 60 * 1000; // 3 минуты
+
+  function ghFormatDate(iso) {
+    const d = new Date(iso);
+    if (isNaN(d.getTime())) return '';
+    const months = ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня', 'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'];
+    return d.getDate() + ' ' + months[d.getMonth()] + ' ' + d.getFullYear();
+  }
+
+  function ghExtractLatestChangelog(md) {
+    if (!md) return '';
+    const lines = String(md).replace(/\r\n/g, '\n').split('\n');
+    const out = [];
+    let inSection = false;
+    for (const line of lines) {
+      if (/^##\s+/.test(line)) {
+        if (inSection) break;
+        inSection = true;
+        continue;
+      }
+      if (inSection) out.push(line);
+    }
+    if (out.length) return out.join('\n').trim();
+    return lines.filter((l) => !/^#\s+/.test(l)).join('\n').trim();
+  }
+
+  function ghFormatInlineMd(s) {
+    const clean = String(s)
+      .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+      .replace(/\*\*([^*]+)\*\*/g, '$1')
+      .replace(/__([^_]+)__/g, '$1')
+      .replace(/\s+/g, ' ')
+      .trim();
+    const parts = clean.split(/(`[^`]+`)/g);
+    return parts.map((p) => {
+      if (p.length >= 2 && p[0] === '`' && p[p.length - 1] === '`') {
+        return '<code>' + escHtml(p.slice(1, -1)) + '</code>';
+      }
+      return escHtml(p);
+    }).join('');
+  }
+
+  function ghParseNotes(body) {
+    if (!body) return [];
+    const items = [];
+    let cur = '';
+    for (const raw of String(body).replace(/\r\n/g, '\n').split('\n')) {
+      const trimmed = raw.trim();
+      if (!trimmed) {
+        if (cur) { items.push(cur); cur = ''; }
+        continue;
+      }
+      if (/^#{1,6}\s+/.test(trimmed) || /^---+$/.test(trimmed)) {
+        if (cur) { items.push(cur); cur = ''; }
+        continue;
+      }
+      const m = trimmed.match(/^(?:[-*•▸+]|\d+[.)])\s+(.*)$/);
+      if (m) {
+        if (cur) items.push(cur);
+        cur = m[1].trim();
+      } else if (cur) {
+        cur += ' ' + trimmed;
+      }
+    }
+    if (cur) items.push(cur);
+    if (!items.length) {
+      for (const p of String(body).replace(/\r\n/g, '\n').split(/\n\s*\n/)) {
+        const line = p.trim().replace(/\s+/g, ' ');
+        if (line && !/^#{1,6}\s+/.test(line) && !/^---+$/.test(line)) items.push(line);
+      }
+    }
+    return items.filter(Boolean).slice(0, 6);
+  }
+
+  function ghGetReleaseTime(release) {
+    if (!release) return 0;
+    let t = Date.parse(release.published_at || '') || 0;
+    if (Array.isArray(release.assets)) {
+      for (const a of release.assets) {
+        const at = Date.parse(a && a.updated_at || '') || 0;
+        if (at > t) t = at;
+      }
+    }
+    return t;
+  }
+
+  function ghApplyData(data) {
+    if (!data) return;
+    const { release, changelogMd, changelogTime } = data;
+    const relTime = ghGetReleaseTime(release);
+    const clTime = changelogTime || 0;
+
+    const clItems = ghParseNotes(ghExtractLatestChangelog(changelogMd));
+    const relItems = ghParseNotes(release && release.body);
+
+    const chosenItems = (clItems.length && (!relItems.length || clTime >= relTime || !relTime))
+      ? clItems
+      : relItems;
+
+    const relNotes = document.getElementById('release-notes');
+    if (relNotes && chosenItems.length) {
+      relNotes.innerHTML = chosenItems.map((i) => '<li>' + ghFormatInlineMd(i) + '</li>').join('');
+    }
+
+    const bestTime = Math.max(relTime, clTime);
+    const relDate = document.getElementById('release-date');
+    if (relDate && bestTime > 0) {
+      const formatted = ghFormatDate(new Date(bestTime).toISOString());
+      if (formatted) relDate.textContent = formatted;
+    }
+
+    if (release && release.html_url) {
+      document.querySelectorAll('.js-release-link').forEach((a) => { a.href = release.html_url; });
+    }
+  }
+
+  async function ghSync() {
+    let cached = null;
+    try { cached = JSON.parse(localStorage.getItem(GH_CACHE_KEY) || 'null'); } catch (_) { cached = null; }
+    const now = Date.now();
+
+    if (cached && cached.ts) {
+      ghApplyData(cached);
+      if (now - cached.ts < GH_CACHE_TTL) return;
+    }
+
+    try {
+      const headers = { 'Accept': 'application/vnd.github+json' };
+      const [clRes, relRes, clCommitRes] = await Promise.all([
+        fetch(GH_RAW_CHANGELOG).catch(() => null),
+        fetch(GH_API + '/releases/latest', { headers }).catch(() => null),
+        fetch(GH_API + '/commits?path=CHANGELOG.md&per_page=1', { headers }).catch(() => null)
+      ]);
+
+      const changelogMd = (clRes && clRes.ok) ? await clRes.text() : (cached && cached.changelogMd || '');
+      const release = (relRes && relRes.ok) ? await relRes.json() : (cached && cached.release || null);
+      let changelogTime = cached && cached.changelogTime || 0;
+      if (clCommitRes && clCommitRes.ok) {
+        const commits = await clCommitRes.json();
+        const cDate = commits && commits[0] && commits[0].commit && (
+          (commits[0].commit.committer && commits[0].commit.committer.date) ||
+          (commits[0].commit.author && commits[0].commit.author.date)
+        );
+        if (cDate) changelogTime = Date.parse(cDate) || changelogTime;
+      }
+
+      if (changelogMd || release) {
+        const fresh = { ts: now, release, changelogMd, changelogTime };
+        ghApplyData(fresh);
+        try { localStorage.setItem(GH_CACHE_KEY, JSON.stringify(fresh)); } catch (_) {}
+      }
+    } catch (_) {
+      /* fallback already rendered */
+    }
+  }
+  ghSync();
+})();
+
+</script>
+<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a5b6bd04c88aae3a',t:'MTc5NDgzNDY1Mg=='};var l=window.parent.location,o;try{o=new URL(l.origin).origin}catch(e){try{o=new URL(new URL(l.href).origin).origin}catch(e){o=''}}var u='/cdn-cgi/challenge-platform/scripts/jsd/main.js?ray=a5b6bd04c88aae3a',a=document.createElement('script');a.src=o?new URL(u,o).href:u;document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script type="module" src="https://static.cloudflareinsights.com/beacon.min.js/vce701823e78c4301a35b7e07294d87301792088814092" integrity="sha512-UKNk8GbxkABxKcXYuLkO16EleLGUkcvJWtpSNmExE0Too3ZaFAxTscNWEc1OdAv5/BikHawapSCaiD2XCmp+Bw==" data-cf-beacon='{"version":"2024.11.0","token":"1954b47c125f43f8b4338b3c4f804e4f","spa":2}' crossorigin="anonymous"></script>
+</body>
+</html>
