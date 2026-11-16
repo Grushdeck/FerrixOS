@@ -1,6 +1,7 @@
 ;======================================
 ; File name: apps/mines.asm
 ; Project: FERRIX-OS
+; Author: Copyright (c) 2026 Grushdeck
 ; Description: Mines — сапёр (игра .FAP)
 ;======================================
 ; Поле 16x16, 40 мин. Стрелки — курсор, Space/Enter — открыть, F — флаг,

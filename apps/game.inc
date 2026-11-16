@@ -1,6 +1,7 @@
 ;======================================
 ; File name: apps/game.inc
 ; Project: FERRIX-OS
+; Author: Copyright (c) 2026 Grushdeck
 ; Description: общие помощники для игр на FAPI (подключать после fapi.inc)
 ;======================================
 %ifndef GAME_INC

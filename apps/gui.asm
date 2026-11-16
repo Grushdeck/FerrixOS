@@ -1,6 +1,7 @@
 ;======================================
 ; File name: apps/gui.asm
 ; Project: FERRIX-OS
+; Author: Copyright (c) 2026 Grushdeck
 ; Description: gui — оконный менеджер и рабочий стол (внешняя программа .FAP)
 ;======================================
 ; gui                — рабочий стол с обоями из /SYSTEM/GUI.CFG (по умолчанию синий тон)
@@ -49,6 +50,7 @@ W_CY0    equ 376                    ; dw верхняя строка содер�
 W_W      equ 378                    ; dw ширина окна (знакомест)
 W_H      equ 380                    ; dw высота содержимого (строк)
 W_ANIM   equ 382                    ; db 1 = окно уже показано (анимация открытия сыграна)
+W_INPUT  equ 383                    ; db 1 = программа хоть раз запрашивала ввод (иначе после выхода окно ждёт клавишу)
 W_SIZE   equ 384
 MINW     equ 24                     ; минимальная ширина окна
 
@@ -499,6 +501,7 @@ win_reset:
     mov byte [bx + W_CURR], 0
     mov byte [bx + W_CURC], 0
     mov byte [bx + W_CVIS], 1
+    mov byte [bx + W_INPUT], 0
     ; стек: [FFFE]=GUI_SEG [FFFC]=app_retf_stub (retf программы), [FFFA]=start_app, [FFF8]=bp, [FFF6]=si
     mov es, [bx + W_SEG]
     mov word [es:0xFFFE], GUI_SEG
@@ -663,6 +666,16 @@ run_command:
     mov si, req_path
     FAPI FAPI_STAT
     jnc .spawn_it
+    mov si, s_fshapps               ; утилиты оболочки: /SYSTEM/SYSAPPS/FSH/
+    mov di, req_path
+    call str_copy
+    mov si, rc_tok
+    call str_copy
+    mov si, s_fapext
+    call str_copy
+    mov si, req_path
+    FAPI FAPI_STAT
+    jnc .spawn_it
     mov si, s_slash
     mov di, req_path
     call str_copy
@@ -754,7 +767,7 @@ wm_entry:
     mov [cur_win], ax
     mov [cur_rec], bx
     mov al, [bp + F_AX + 1]         ; AH = функция
-    cmp al, 0x21
+    cmp al, 0x25
     ja .other
     xor ah, ah
     mov si, ax
@@ -787,6 +800,7 @@ wm_tab:
     dw v_putat, v_fillrect, v_putsat
     dw pass, v_shell, v_exec, pass, pass, pass
     dw v_mouse, v_mouseshow, pass, v_nop
+    dw pass, pass, pass, v_getkey   ; 22 AUDIO, 23 DATE, 24 SYSINFO, 25 WAITKEY (в окне — обычный getkey)
 
 ; AX = сегмент -> AX индекс окна, BX запись; CF=1 нет
 win_by_seg:
@@ -841,8 +855,26 @@ pass:
 .ok:
     ret
 
-; выход программы
+; выход программы. Если программа ни разу не спрашивала ввод (fetch, mem, date, ...),
+; окно с её выводом остаётся до нажатия клавиши — иначе результат исчез бы мгновенно
 do_exit:
+    mov bx, [cur_rec]
+    cmp byte [bx + W_INPUT], 0
+    jne .close
+    mov byte [bx + W_INPUT], 1
+    mov si, s_done
+    call tb_message
+.wait:
+    call pump_iter
+    mov ah, 0x11
+    int 0x16
+    jnz .got
+    hlt
+    jmp .wait
+.got:
+    mov ah, 0x10
+    int 0x16
+.close:
     mov ax, [cur_win]
     mov [req_win], ax
     mov byte [req], REQ_CLOSE
@@ -1094,18 +1126,23 @@ v_putsat:
 
 ; --- ввод ---
 v_getkey:
+    mov bx, [cur_rec]
+    mov byte [bx + W_INPUT], 1
+.w:
     call pump_iter
     mov ah, 0x11
     int 0x16
     jnz .key
     hlt
-    jmp v_getkey
+    jmp .w
 .key:
     mov ah, 0x10
     int 0x16
     mov [bp + F_AX], ax
     ret
 v_keyhit:
+    mov bx, [cur_rec]
+    mov byte [bx + W_INPUT], 1
     call pump_iter
     mov ah, 0x11
     int 0x16
@@ -1130,6 +1167,8 @@ v_sleep:
 .d: ret
 ; мышь: координаты относительно содержимого текущего окна; кнопки — только внутри него
 v_mouse:
+    mov bx, [cur_rec]
+    mov byte [bx + W_INPUT], 1
     call pump_iter
     FAPI FAPI_MOUSE
     mov bx, [cur_rec]
@@ -2682,11 +2721,13 @@ u16_to_str:
 s_fmpath  db "/SYSTEM/SYSAPPS/FM.FAP", 0
 s_empty   db 0
 s_sysapps db "/SYSTEM/SYSAPPS/", 0
+s_fshapps db "/SYSTEM/SYSAPPS/FSH/", 0
 s_slash   db "/", 0
 s_fapext  db ".FAP", 0
 s_cfg     db "/SYSTEM/GUI.CFG", 0
 s_nofm    db "gui: cannot load /SYSTEM/SYSAPPS/FM.FAP", 13, 10, 0
 s_usage   db "Usage: gui [-t TONE(0-7) | -w FILE.BMP]", 13, 10, 0
+s_done  db "Done - press a key", 0
 s_nowin   db "No free window", 0
 s_badbmp  db "Bad wallpaper BMP", 0
 s_pause   db 13, 10, "[ press any key ]", 0

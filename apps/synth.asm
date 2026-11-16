@@ -1,6 +1,7 @@
 ;======================================
 ; File name: apps/synth.asm
 ; Project: FERRIX-OS
+; Author: Copyright (c) 2026 Grushdeck
 ; Description: Synth — полифонический синтезатор на Intel HDA (.FAP).
 ;              Клавиатура-пианино (2,5 октавы), 4 волны, ADSR-пресеты, эхо,
 ;              запись/воспроизведение сыгранного и сохранение в .SNG

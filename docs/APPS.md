@@ -17,6 +17,8 @@
 | `MICRO.FAP` | Эмулятор CHIP-8  |
 | `IRON.FAP` | Компилятор ассемблера frasm → `.FAP`  |
 | `SYNTH.FAP` | Синтезатор-пианино с мини-секвенсором на HD Audio  |
+| `FSH.FAP` | Оболочка fsh — отдельный модуль, ядро запускает его сразу после загрузки (нет файла — ядро пишет `EMERGENCY MODE` и работает встроенная запасная оболочка): приглашение (приглашение, редактор строки, история в `/SYSTEM/FSH.HIS`, Tab-дополнение); встроенные команды идут в ядро через `FAPI_SHELL`, программы/`run`/`sh` — через `FAPI_EXEC` (fsh завершается, ядро запускает программу и снова поднимает fsh); `exit` — назад в оболочку ядра |
+| `FETCH.FAP`, `CPU.FAP`, `MEM.FAP`, `DATE.FAP`, `TIME.FAP`, `ECHO.FAP`, `HEX.FAP`, `BIN.FAP`, `ASCII.FAP`, `MATRIX.FAP`, `BANNER.FAP`, `OSINFO.FAP`, `CREDITS.FAP` | Бывшие встроенные команды ядра — теперь отдельные мини-программы в `/SYSTEM/SYSAPPS/FSH` (apps/*.asm, общие помощники в `apps/sysutil.inc`, определение CPU — `apps/cpuinfo.inc`); fetch берёт занятость диска, пояс и uptime через `FAPI_SYSINFO` |
 | `HELLO.FAP` | Пример |
 
 Все программы пакета сделаны в одном стиле: строка-заголовок, рабочая область, строка клавиш/состояния внизу,
@@ -171,7 +173,7 @@ msg db "Hello from frasm!", 13, 10, 0
 
 ```
 python3 tools/fpy.py examples/hello.fpy -o HELLO.ASM     # на хосте
-iron /PYHELLO.ASM /HELLO2.FAP                            # в Ferrix (PYHELLO.ASM скопировать в образ: mcopy -i hd.img build/PYHELLO.ASM ::)
+iron /PYHELLO.ASM /HELLO2.FAP                            # в Ferrix (PYHELLO.ASM скопировать в образ: mcopy -i ferrix.img build/PYHELLO.ASM ::)
 hello2 Neo
 ```
 

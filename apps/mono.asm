@@ -1,6 +1,7 @@
 ;======================================
 ; File name: apps/mono.asm
 ; Project: FERRIX-OS
+; Author: Copyright (c) 2026 Grushdeck
 ; Description: mono — полноэкранный текстовый редактор (внешняя программа .FAP)
 ;======================================
 ; mono [FILE.TXT]

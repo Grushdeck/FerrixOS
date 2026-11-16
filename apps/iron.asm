@@ -1,6 +1,7 @@
 ;======================================
 ; File name: apps/iron.asm
 ; Project: FERRIX-OS
+; Author: Copyright (c) 2026 Grushdeck
 ; Description: iron — компилятор (ассемблер) frasm -> плоский образ .FAP/.BIN
 ;======================================
 ; Запуск: iron SOURCE.ASM OUT.FAP

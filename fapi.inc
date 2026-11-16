@@ -1,6 +1,7 @@
 ;======================================
 ; File name: fapi.inc
 ; Project: FERRIX-OS
+; Author: Copyright (c) 2026 Grushdeck
 ; Description: Ferrix App Image (.FAP) — заголовок и системные вызовы
 ;======================================
 ; Программа — плоский 16-битный образ (tiny-модель, как .COM):
@@ -17,7 +18,7 @@ API_INT         equ 0x80
 
 FAPI_EXIT       equ 0x00    ; завершить программу
 FAPI_PUTC       equ 0x01    ; AL = символ
-FAPI_PUTS       equ 0x02    ; DS:SI = ASCIIZ
+FAPI_PUTS       equ 0x02    ; DS:SI = ASCIIZ (байт 1 + атрибут внутри строки меняет цвет до конца строки)
 FAPI_GETKEY     equ 0x03    ; -> AX (AL = ASCII, 0/E0 = расширенная; AH = скан-код)
 FAPI_KEYHIT     equ 0x04    ; -> AX (0 = нет клавиши), ZF=1 если нет
 FAPI_SETCUR     equ 0x05    ; DH = строка, DL = столбец
@@ -55,6 +56,10 @@ FAPI_WM         equ 0x21    ; оконный менеджер (GUI.FAP): AL=0 у
 FAPI_AUDIO      equ 0x22    ; PCM-поток через HDA: AL=0 открыть (ES:DI буфер 2 половины, CX размер половины, BX формат SDFMT),
                             ;   AL=1 опрос -> AL играющая половина, DX позиция в ней; AL=2 закрыть. CF=1 нет HDA
 FAPI_DATE       equ 0x23    ; -> CX год, DH месяц, DL день, AL день недели (0 = воскресенье)
+FAPI_SYSINFO    equ 0x24    ; AL=0 диск -> AX занято КБ, DX всего КБ, CL 12/16 (FAT), CH буква; CF=1 ошибка
+                            ; AL=1 пояс -> AL смещение UTC (знаковое), AH 1 = RTC идёт по UTC
+                            ; AL=2 -> DX:AX тики таймера на момент загрузки (uptime = TICKS - это)
+FAPI_WAITKEY    equ 0x25    ; как GETKEY, но при простое показывает заставку (saver) — для оболочек
 ; Слово по адресу 0010h сегмента программы — сегмент видеопамяти (B800h, под GUI — виртуальный экран окна):
 ; программы, пишущие в видеопамять напрямую, должны брать сегмент оттуда.
 

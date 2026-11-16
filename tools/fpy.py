@@ -3,6 +3,7 @@
 #======================================
 # File name: tools/fpy.py
 # Project: FERRIX-OS
+# Author: Copyright (c) 2026 Grushdeck
 # Description: ferpy — компилятор Python-подобного языка в frasm (ассемблер iron / nasm -f bin)
 #======================================
 # Использование:  python3 tools/fpy.py prog.fpy [-o PROG.ASM] [--nasm]

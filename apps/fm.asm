@@ -1,6 +1,7 @@
 ;======================================
 ; File name: apps/fm.asm
 ; Project: FERRIX-OS
+; Author: Copyright (c) 2026 Grushdeck
 ; Description: fm — двухпанельный файловый менеджер (программа .FAP, API v3)
 ;======================================
 ; Клавиши: Tab панель, стрелки/PgUp/PgDn/Home/End, Enter войти/запустить/просмотр,

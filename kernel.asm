@@ -109,6 +109,16 @@ kernel_start:
     call autoexec_run
 
 shell_loop:
+    cmp byte [fsh_boot], 0          ; оболочка fsh — отдельный модуль FSH.FAP
+    jne .sl_prompt
+    mov byte [fsh_boot], 1
+    mov si, fsh_cmd
+    call ib_set
+    call app_try_run                ; нет FSH.FAP -> встроенная оболочка
+    jnc .sl_prompt
+    mov si, fsh_missing
+    call print_cstring              ; аварийный режим
+.sl_prompt:
     call print_prompt
     mov word [get_max], 1022
     mov byte [get_hist], 1          ; стрелки вверх/вниз = история
@@ -178,9 +188,6 @@ exec_line:
     mov di, cmd_play
     call str_match
     jc do_play
-    mov di, cmd_fetch
-    call str_match
-    jc do_fetch
     mov di, cmd_clear
     call str_match
     jc do_clear
@@ -193,42 +200,6 @@ exec_line:
     mov di, cmd_shutdown
     call str_match
     jc do_shutdown
-    mov di, cmd_date
-    call str_match
-    jc do_date
-    mov di, cmd_time
-    call str_match
-    jc do_time
-    mov di, cmd_mem
-    call str_match
-    jc do_mem
-    mov di, cmd_echo
-    call str_match
-    jc do_echo
-    mov di, cmd_matrix
-    call str_match
-    jc do_matrix
-    mov di, cmd_ascii
-    call str_match
-    jc do_ascii
-    mov di, cmd_cpu
-    call str_match
-    jc do_cpu
-    mov di, cmd_osinfo
-    call str_match
-    jc do_osinfo
-    mov di, cmd_credits
-    call str_match
-    jc do_credits
-    mov di, cmd_hex
-    call str_match
-    jc do_hex
-    mov di, cmd_bin
-    call str_match
-    jc do_bin
-    mov di, cmd_banner
-    call str_match
-    jc do_banner
     mov di, cmd_pwd
     call str_match
     jc do_pwd
@@ -298,9 +269,6 @@ do_view:
 do_play:
     call play_command
     ret
-do_fetch:
-    call fetch_command
-    ret
 do_cd:
     call cd_command
     ret
@@ -320,44 +288,6 @@ do_reboot:
     jmp 0xFFFF:0x0000
 do_shutdown:
     call shutdown_system
-    ret
-do_date:
-    call show_date
-    ret
-do_time:
-    call show_time
-    ret
-do_mem:
-    call show_memory
-    ret
-do_echo:
-    call echo_command
-    ret
-do_matrix:
-    call matrix_effect
-    ret
-do_ascii:
-    call ascii_table
-    ret
-do_cpu:
-    call cpu_detect
-    ret
-do_osinfo:
-    mov si, osinfo_msg
-    call print_string
-    ret
-do_credits:
-    mov si, credits_msg
-    call print_string
-    ret
-do_hex:
-    call hex_converter
-    ret
-do_bin:
-    call bin_converter
-    ret
-do_banner:
-    call show_banner
     ret
 do_pwd:
     call pwd_command
@@ -490,316 +420,6 @@ cpu_probe:
     popa
     ret
 
-; SI -> короткое имя процессора (brand без ведущих пробелов / vendor / класс)
-cpu_name_ptr:
-    cmp byte [cpu_level], 3
-    jb .cn_old
-    mov si, cpu_brand
-.cn_trim:
-    cmp byte [si], ' '
-    jne .cn_chk
-    inc si
-    jmp .cn_trim
-.cn_chk:
-    cmp byte [si], 0
-    jne .cn_ret
-    mov si, cpu_v0
-    ret
-.cn_old:
-    mov si, cpu_386_lbl
-    cmp byte [cpu_level], 2
-    je .cn_ret
-    mov si, cpu_286_lbl
-    cmp byte [cpu_level], 1
-    je .cn_ret
-    mov si, cpu_8086_lbl
-.cn_ret:
-    ret
-
-cpu_detect:
-    pusha
-    call cpu_probe
-    cmp byte [cpu_level], 3
-    jb .cd_simple
-    mov si, cpu_vendor_lbl
-    call print_string
-    mov si, cpu_v0
-    call print_string
-    mov si, newline
-    call print_string
-    mov si, cpu_family_lbl
-    call print_string
-    mov ax, [cpu_leaf1]
-    mov cl, 8
-    shr ax, cl
-    and ax, 0x0F
-    call print_dec_ax
-    mov si, cpu_model_lbl
-    call print_string
-    mov ax, [cpu_leaf1]
-    mov cl, 4
-    shr ax, cl
-    and ax, 0x0F
-    call print_dec_ax
-    mov si, cpu_stepping_lbl
-    call print_string
-    mov ax, [cpu_leaf1]
-    and ax, 0x0F
-    call print_dec_ax
-    mov si, newline
-    call print_string
-    cmp byte [cpu_brand], 0
-    je .cd_mode
-    mov si, cpu_brand_lbl
-    call print_string
-    call cpu_name_ptr
-    call print_string
-    mov si, newline
-    call print_string
-.cd_mode:
-    mov si, cpu_16bit_lbl
-    call print_string
-    jmp .cd_done
-.cd_simple:
-    mov si, cpu_lbl
-    call print_string
-    call cpu_name_ptr
-    call print_string
-    mov si, newline
-    call print_string
-.cd_done:
-    popa
-    ret
-
-;=================== fetch (как neofetch) ===================
-FETCH_COL equ 24
-
-fetch_command:
-    pusha
-    push es
-    call clear_screen
-    call cpu_probe
-    ; --- логотип слева ---
-    mov si, fetch_logo
-    xor dh, dh
-.fe_logo:
-    mov bl, [si]
-    cmp bl, 0xFF
-    je .fe_logo_done
-    inc si
-    mov ah, 0x02
-    xor bh, bh
-    mov dl, 2
-    int 0x10
-    call print_attr                 ; SI -> за терминатором
-    inc dh
-    jmp .fe_logo
-.fe_logo_done:
-    ; --- строка 0: root@ferrix ---
-    xor dh, dh
-    call fetch_row
-    mov si, prm_user
-    mov bl, 0x0A
-    call print_attr
-    ; --- строка 1: подчёркивание ---
-    inc dh
-    call fetch_row
-    mov si, fetch_dash
-    mov bl, 0x07
-    call print_attr
-    ; --- OS ---
-    inc dh
-    mov si, f_os
-    call fetch_label
-    mov si, f_os_v
-    call print_string
-    ; --- Host (дата BIOS из F000:FFF5) ---
-    inc dh
-    mov si, f_host
-    call fetch_label
-    mov si, f_host_v
-    call print_string
-    push ds
-    mov ax, 0xF000
-    mov ds, ax
-    mov si, 0xFFF5
-    mov cx, 8
-.fe_bios:
-    lodsb
-    call print_char
-    loop .fe_bios
-    pop ds
-    mov al, ')'
-    call print_char
-    ; --- Kernel ---
-    inc dh
-    mov si, f_kernel
-    call fetch_label
-    mov si, f_kernel_v
-    call print_string
-    ; --- Uptime ---
-    inc dh
-    mov si, f_uptime
-    call fetch_label
-    call fetch_uptime
-    ; --- Shell ---
-    inc dh
-    mov si, f_shell
-    call fetch_label
-    mov si, f_shell_v
-    call print_string
-    ; --- Resolution ---
-    inc dh
-    mov si, f_res
-    call fetch_label
-    mov si, f_res_v
-    call print_string
-    ; --- Terminal ---
-    inc dh
-    mov si, f_term
-    call fetch_label
-    mov si, f_term_v
-    call print_string
-    ; --- CPU ---
-    inc dh
-    mov si, f_cpu
-    call fetch_label
-    call cpu_name_ptr
-    call print_string
-    ; --- Memory ---
-    inc dh
-    mov si, f_mem
-    call fetch_label
-    int 0x12
-    call print_dec_ax
-    mov si, f_mem_v1
-    call print_string
-    mov ah, 0x88
-    int 0x15
-    jc .fe_noext
-    call print_dec_ax
-    mov si, f_mem_v2
-    call print_string
-    jmp .fe_disk
-.fe_noext:
-    mov si, f_mem_noext
-    call print_string
-.fe_disk:
-    ; --- Disk ---
-    inc dh
-    mov si, f_disk
-    call fetch_label
-    call fetch_disk
-    ; --- цветовая палитра ---
-    add dh, 2
-    xor bl, bl
-    call fetch_palette
-    inc dh
-    mov bl, 8
-    call fetch_palette
-    ; курсор под всем этим
-    add dh, 2
-    mov ah, 0x02
-    xor bh, bh
-    xor dl, dl
-    int 0x10
-    pop es
-    popa
-    ret
-
-; курсор в строку DH, колонку FETCH_COL
-fetch_row:
-    push ax
-    push bx
-    push dx
-    mov ah, 0x02
-    xor bh, bh
-    mov dl, FETCH_COL
-    int 0x10
-    pop dx
-    pop bx
-    pop ax
-    ret
-
-; строка DH, метка SI голубым
-fetch_label:
-    push bx
-    call fetch_row
-    mov bl, 0x0B
-    call print_attr
-    pop bx
-    ret
-
-; 8 цветных блоков, начиная с цвета BL, в строке DH
-fetch_palette:
-    pusha
-    call fetch_row
-    mov dl, FETCH_COL
-    mov cx, 8
-.fp_loop:
-    push cx
-    mov ah, 0x02
-    xor bh, bh
-    int 0x10
-    push bx
-    mov cl, 4
-    shl bl, cl
-    mov ah, 0x09
-    mov al, ' '
-    mov cx, 3
-    int 0x10
-    pop bx
-    inc bl
-    add dl, 3
-    pop cx
-    loop .fp_loop
-    popa
-    ret
-
-; Uptime из тиков BIOS (0040:006C), ~18.2 тика/с
-fetch_uptime:
-    pusha
-    push es
-    mov ax, 0x0040
-    mov es, ax
-    mov ax, [es:0x6C]
-    mov dx, [es:0x6E]
-    sub ax, [boot_ticks]
-    sbb dx, [boot_ticks + 2]
-    jnc .fu_nowrap
-    add ax, 0x00B0                  ; счётчик обнулился в полночь (0x1800B0 тиков/сутки)
-    adc dx, 0x0018
-.fu_nowrap:
-    mov bx, 18
-    push ax
-    mov ax, dx
-    xor dx, dx
-    div bx
-    mov cx, ax                      ; старшее слово секунд
-    pop ax
-    div bx                          ; CX:AX = секунды
-    mov bx, 3600
-    push ax
-    mov ax, cx
-    xor dx, dx
-    div bx
-    pop ax
-    div bx                          ; AX = часы, DX = остаток секунд
-    push dx
-    call print_dec_ax
-    mov si, f_hours
-    call print_string
-    pop ax
-    xor dx, dx
-    mov bx, 60
-    div bx
-    call print_dec_ax
-    mov si, f_mins
-    call print_string
-    pop es
-    popa
-    ret
-
 ; Параметры тома из BPB загрузочного сектора (он ещё лежит в 0000:7C00).
 ; Поддерживаются FAT12 и FAT16 с 512-байтным сектором и 1 сектором на кластер.
 vol_init:
@@ -811,6 +431,10 @@ vol_init:
     jne .vi_bad
     cmp byte [0x7C0D], 1            ; секторов на кластер
     jne .vi_bad
+    mov ax, [0x7C1C]                ; hidden sectors: начало раздела на диске
+    mov [cs:part_lba], ax
+    mov ax, [0x7C1E]
+    mov [cs:part_lba + 2], ax
     mov ax, [0x7C0E]                ; зарезервированных
     mov [cs:fat_lba], ax
     mov bl, [0x7C10]                ; копий FAT
@@ -874,44 +498,36 @@ vol_init:
     popa
     ret
 
-; Занято/всего на томе по FAT (кластер = 512 байт)
-fetch_disk:
-    pusha
+; Занято/всего на томе по FAT (кластер = 512 байт) -> AX занято КБ, DX всего КБ; CF=1 ошибка
+disk_usage:
+    push bx
+    push cx
     call read_fat
-    jc .fd_err
+    jc .du_err
     xor bx, bx                      ; занятых кластеров
     mov cx, 2
-.fd_loop:
+.du_loop:
     mov ax, cx
     call fat_next
     test ax, ax
-    jz .fd_free
+    jz .du_free
     inc bx
-.fd_free:
+.du_free:
     inc cx
     cmp cx, [fat_nclus]
-    jb .fd_loop
+    jb .du_loop
     mov ax, bx
     shr ax, 1                       ; КБ
-    call print_dec_ax
-    mov si, f_disk_v
-    call print_string
-    mov ax, [fat_nclus]
-    sub ax, 2
-    shr ax, 1
-    call print_dec_ax
-    mov si, f_disk_v12
-    cmp byte [fat_is16], 0
-    je .fd_t
-    mov si, f_disk_v16
-.fd_t:
-    call print_string
-    jmp .fd_done
-.fd_err:
-    mov si, f_disk_err
-    call print_string
-.fd_done:
-    popa
+    mov dx, [fat_nclus]
+    sub dx, 2
+    shr dx, 1
+    clc
+    jmp .du_ret
+.du_err:
+    stc
+.du_ret:
+    pop cx
+    pop bx
     ret
 
 ; print_attr: строка DS:SI с атрибутом BL от текущей позиции курсора
@@ -1111,6 +727,8 @@ lba_to_chs:
     push ax
     push bx
     xor dx, dx
+    add ax, [part_lba]              ; + начало раздела (hidden sectors из BPB); LBA в DX:AX
+    adc dx, [part_lba + 2]
     div word [disk_spt]
     mov cl, dl
     inc cl
@@ -1446,6 +1064,10 @@ fat_flush:
     clc
     ret
 .ff_err:
+    ; записать не удалось (носитель только для чтения — CD, защищённая дискета):
+    ; выбросить несохранённое окно FAT, иначе все дальнейшие чтения тоже «падают»
+    mov byte [fat_dirty], 0
+    mov word [fat_win], 0xFFFF
     pop es
     popa
     stc
@@ -3540,10 +3162,12 @@ play_command:
     mov [wav_remain + 2], ax
     mov byte [hda_eof], 0
     mov ax, HDA_BUF0
-    call hda_fill_half              ; CX = реальных кадров
+    call hda_fill_half
+    call hda_cache_flush              ; CX = реальных кадров
     jcxz .pl_hda_end0
     mov ax, HDA_BUF1
     call hda_fill_half
+    call hda_cache_flush
     jcxz .pl_hda_eof1
     jmp .pl_hda_go
 .pl_hda_eof1:
@@ -3571,6 +3195,7 @@ play_command:
     mov ax, HDA_BUF1
 .pl_hda_rf:
     call hda_fill_half
+    call hda_cache_flush
     jcxz .pl_hda_last
     jmp .pl_hda_loop
 .pl_hda_last:
@@ -3768,8 +3393,12 @@ hda_init:
     cmp byte [hda_ready], 2
     je .hi_fail                     ; уже пробовали — нет
     mov byte [hda_ready], 2
-    ; PCI: класс 04.03 (HD Audio) — сканируем конфигурационное пространство
+    ; PCI: класс 04.03 (HD Audio) — сканируем конфигурационное пространство.
+    ; Контроллеров может быть несколько (HDMI-звук видеокарты и встроенный):
+    ; если у кодеков первого нет аналоговых выходов — пробуем следующий.
     mov byte [hda_stage], '1'
+    xor bx, bx
+.hi_ctrl:
     call hda_pci_scan
     jc .hi_fail
     mov [hda_pci], bx
@@ -3781,6 +3410,7 @@ hda_init:
     call pci_rd32
     or ecx, 0x06
     call pci_wr32
+    call hda_snoop
     mov di, 0x10                    ; BAR0 (64-битный — берём младшую часть)
     call pci_rd32
     and ecx, 0xFFFFFFF0
@@ -3836,6 +3466,9 @@ hda_init:
     inc cx
     cmp cx, 15
     jb .hi_cad
+    mov bx, [hda_pci]               ; этот контроллер не подошёл — следующий
+    inc bx
+    jnz .hi_ctrl
     jmp .hi_fail
 .hi_found:
     mov byte [hda_ready], 1
@@ -3847,6 +3480,49 @@ hda_init:
 .hi_fail:
     popad
     stc
+    ret
+
+; Сброс кэша в память: контроллер читает буфер DMA напрямую из RAM,
+; а в реальном режиме кэш write-back — без этого на реальном железе тишина.
+hda_cache_flush:
+    cmp byte [cs:cpu_level], 3
+    jb .cf_ret
+    wbinvd
+.cf_ret:
+    ret
+
+; Включить когерентность (snoop) DMA контроллера — как делает Linux (azx_init_pci).
+; BX = PCI-адрес, [hda_ctrl_id] = vendor:device
+hda_snoop:
+    pushad
+    mov ax, [hda_ctrl_id]
+    cmp ax, 0x8086                  ; Intel PCH/SCH: DEVC (78h), бит 11 = NoSnoop -> 0
+    jne .sn_amd
+    mov di, 0x78
+    call pci_rd32
+    and ecx, ~0x800
+    call pci_wr32
+    jmp .sn_ret
+.sn_amd:
+    cmp ax, 0x1002                  ; ATI/AMD: MISC_CNTR2 (42h) бит 1 = snoop
+    je .sn_amd2
+    cmp ax, 0x1022
+    jne .sn_nv
+.sn_amd2:
+    mov di, 0x40
+    call pci_rd32
+    or ecx, 0x00020000              ; байт 42h, бит 1
+    call pci_wr32
+    jmp .sn_ret
+.sn_nv:
+    cmp ax, 0x10DE                  ; NVIDIA MCP: 4Ch/4Dh бит 0, 4Eh биты 0-3
+    jne .sn_ret
+    mov di, 0x4C
+    call pci_rd32
+    or ecx, 0x000F0101
+    call pci_wr32
+.sn_ret:
+    popad
     ret
 
 ; Команда кодеку: EAX = verb (32 бита) -> EAX = ответ. CF по таймауту.
@@ -3929,12 +3605,16 @@ hda_amp_offset_in:
     pop ebx
     ret
 
-; Найти аудиогруппу, выходной пин и ЦАП, разблокировать путь. CF при неудаче.
+; Найти аудиогруппу, все выходные пины (Line Out / Speaker / HP) и их ЦАПы,
+; разблокировать пути. На реальных кодеках (Realtek и др.) динамики и разъёмы
+; висят на разных пинах/ЦАПах, поэтому включаем все сразу. CF при неудаче.
 hda_codec_setup:
     pushad
     mov byte [hda_afg], 0
     mov byte [hda_pin], 0
     mov byte [hda_dac], 0
+    mov byte [hda_npins], 0
+    mov byte [hda_ndacs], 0
     xor bl, bl
     mov eax, 0x04                   ; корень: подузлы
     call hda_param
@@ -3967,7 +3647,7 @@ hda_codec_setup:
     call hda_node
     mov cx, 2
     call wait_ticks
-    ; виджеты
+    ; --- собрать выходные пины ---
     mov bl, [hda_afg]
     mov eax, 0x04
     call hda_param
@@ -3998,14 +3678,20 @@ hda_codec_setup:
     and al, 0x0F                    ; default device
     mov ah, 0                       ; оценка: Line Out лучше всего
     cmp al, 0
-    je .cs_score
+    je .cs_add
     mov ah, 1
     cmp al, 2                       ; HP Out
-    je .cs_score
+    je .cs_add
     mov ah, 2
     cmp al, 1                       ; Speaker
     jne .cs_wn
-.cs_score:
+.cs_add:
+    movzx si, byte [hda_npins]
+    cmp si, HDA_MAXPINS
+    jae .cs_wn
+    mov [hda_pins + si], bl
+    mov [hda_pindevs + si], al
+    inc byte [hda_npins]
     cmp ah, [hda_best]
     jae .cs_wn
     mov [hda_best], ah
@@ -4015,87 +3701,165 @@ hda_codec_setup:
     inc bl
     dec cl
     jnz .cs_w
-    cmp byte [hda_pin], 0
+    cmp byte [hda_npins], 0
     je .cs_fail
     mov byte [hda_stage], 'P'
-    ; путь от пина к ЦАП (до 4 шагов)
-    mov bl, [hda_pin]
-    mov ch, 4
-.cs_path:
-    mov eax, 0x09
-    call hda_param
-    mov edx, eax
-    shr edx, 20
-    and dl, 0x0F                    ; тип
-    jz .cs_isdac
-    ; разблокировать усилители узла и выбрать вход 0
-    test al, 0x04                   ; выходной усилитель есть
-    jz .cs_noout
-    push eax
-    call hda_amp_offset
-    mov ah, 0xB0                    ; out, L+R, без mute
-    mov edx, eax
-    and edx, 0xFFFF
-    mov eax, 0x30000
-    or eax, edx
-    call hda_node
-    pop eax
-.cs_noout:
-    test al, 0x02                   ; входной усилитель есть
-    jz .cs_noin
-    push eax
-    call hda_amp_offset_in
-    mov ah, 0x70                    ; in, L+R, индекс 0, без mute
-    mov edx, eax
-    and edx, 0xFFFF
-    mov eax, 0x30000
-    or eax, edx
-    call hda_node
-    pop eax
-.cs_noin:
-    mov eax, 0x70500                ; D0
-    call hda_node
-    mov eax, 0x70100                ; выбрать соединение 0
-    call hda_node
-    mov eax, 0x0E                   ; длина списка соединений
-    call hda_param
-    test al, 0x7F
-    jz .cs_fail
-    mov eax, 0xF0200                ; список соединений, запись 0
-    call hda_node
-    and al, 0x7F
-    mov bl, al
-    dec ch
-    jnz .cs_path
-    jmp .cs_fail
-.cs_isdac:
-    mov [hda_dac], bl
+    ; --- для каждого пина: включить и проложить путь к ЦАП ---
+    xor si, si
+.cs_each:
+    mov bl, [hda_pins + si]
+    mov al, [hda_pindevs + si]
+    push si
+    call hda_route_pin
+    pop si
+    inc si
+    cmp si, [hda_npins_w]
+    jb .cs_each
+    cmp byte [hda_ndacs], 0
+    je .cs_fail
+    mov al, [hda_dacs]
+    mov [hda_dac], al
     mov byte [hda_stage], 'D'
-    mov eax, 0x70500                ; D0
-    call hda_node
-    call hda_amp_offset
-    mov ah, 0xB0
-    mov edx, eax
-    and edx, 0xFFFF
-    mov eax, 0x30000
-    or eax, edx
-    call hda_node
-    ; пин: включить выход (и HP-усилитель для наушников), EAPD
-    mov bl, [hda_pin]
-    mov eax, 0x70740
-    cmp byte [hda_pindev], 2
-    jne .cs_pc
-    mov eax, 0x707C0
-.cs_pc:
-    call hda_node
-    mov eax, 0x70C02
-    call hda_node
     popad
     clc
     ret
 .cs_fail:
     popad
     stc
+    ret
+
+; BL = пин, AL = тип устройства. Включает пин, идёт по соединениям до ЦАП
+; (предпочитая вход, ведущий к ЦАП), размьючивает все усилители по дороге,
+; ЦАП добавляет в hda_dacs.
+hda_route_pin:
+    pushad
+    ; пин: выход (+HP-усилитель для наушников), EAPD/BTL
+    mov eax, 0x70740
+    cmp al, 2
+    jne .rp_pc
+    mov eax, 0x707C0
+.rp_pc:
+    call hda_node
+    mov eax, 0x70C02
+    call hda_node
+    mov ch, 5                       ; не больше 5 шагов
+.rp_path:
+    mov eax, 0x09
+    call hda_param
+    mov edx, eax
+    shr edx, 20
+    and dl, 0x0F                    ; тип виджета
+    push dx
+    call hda_unmute_node            ; усилители + D0 (AL = caps сохранены внутри)
+    pop dx
+    test dl, dl
+    jz .rp_isdac
+    cmp dl, 4                       ; пин/микшер/селектор — идём дальше, иное (вход) — стоп
+    jbe .rp_next
+    jmp .rp_done
+.rp_next:
+    mov eax, 0x0E                   ; длина списка соединений
+    call hda_param
+    and al, 0x7F
+    jz .rp_done
+    mov cl, al                      ; число соединений
+    mov eax, 0xF0200                ; записи 0..3 (короткая форма)
+    call hda_node
+    mov [hda_conn4], eax
+    ; выбрать: первую запись, которая ЦАП; иначе запись 0
+    xor dh, dh                      ; индекс
+    mov bh, bl                      ; текущий узел
+.rp_pick:
+    cmp dh, cl
+    jae .rp_first
+    cmp dh, 4
+    jae .rp_first
+    movzx si, dh
+    mov al, [hda_conn4 + si]
+    and al, 0x7F
+    push dx
+    push bx
+    mov bl, al
+    mov eax, 0x09
+    call hda_param
+    shr eax, 20
+    and al, 0x0F
+    pop bx
+    pop dx
+    test al, al                     ; ЦАП?
+    jz .rp_sel
+    inc dh
+    jmp .rp_pick
+.rp_first:
+    xor dh, dh
+.rp_sel:
+    mov bl, bh
+    movzx eax, dh
+    or eax, 0x70100                 ; выбрать соединение dh
+    call hda_node
+    mov al, dh
+    call hda_unmute_in              ; и размьютить именно этот вход
+    movzx si, dh
+    mov bl, [hda_conn4 + si]
+    and bl, 0x7F
+    dec ch
+    jnz .rp_path
+    jmp .rp_done
+.rp_isdac:
+    ; добавить в список ЦАПов (без повторов)
+    movzx cx, byte [hda_ndacs]
+    xor si, si
+.rp_dchk:
+    cmp si, cx
+    jae .rp_dadd
+    cmp [hda_dacs + si], bl
+    je .rp_done
+    inc si
+    jmp .rp_dchk
+.rp_dadd:
+    cmp cx, HDA_MAXDACS
+    jae .rp_done
+    mov [hda_dacs + si], bl
+    inc byte [hda_ndacs]
+.rp_done:
+    popad
+    ret
+
+; BL = узел: D0, выходной усилитель на 0 дБ без mute
+hda_unmute_node:
+    pushad
+    mov eax, 0x70500                ; D0
+    call hda_node
+    mov eax, 0x09
+    call hda_param
+    test al, 0x04                   ; выходной усилитель есть
+    jz .un_done
+    call hda_amp_offset
+    mov ah, 0xB0                    ; out, L+R, без mute
+    and eax, 0xFFFF
+    or eax, 0x30000
+    call hda_node
+.un_done:
+    popad
+    ret
+
+; BL = узел, AL = индекс входа: входной усилитель этого входа на 0 дБ без mute
+hda_unmute_in:
+    pushad
+    movzx ecx, al
+    shl ecx, 8
+    mov eax, 0x09
+    call hda_param
+    test al, 0x02                   ; входной усилитель есть
+    jz .ui_done
+    call hda_amp_offset_in
+    mov ah, 0x70                    ; in, L+R, без mute
+    and eax, 0xFFFF
+    or eax, 0x30000
+    or eax, ecx
+    call hda_node
+.ui_done:
+    popad
     ret
 
 ; Заполнить половину AX:0 (16 КБ = 4096 кадров 16 бит стерео 48 кГц) из потока
@@ -4182,11 +3946,11 @@ hda_fill_half:
     ret
 
 ; Поиск HD Audio напрямую через порты PCI (CF8/CFC). -> BX = bus/dev/fn, CF=1 если нет
+; BX = с какого адреса (bus:dev:fn) начинать; -> BX = найденный контроллер, CF=1 нет
 hda_pci_scan:
     push eax
     push ecx
     push dx
-    xor bx, bx
 .ps_next:
     mov eax, 0x80000000
     movzx ecx, bx
@@ -4277,6 +4041,14 @@ hda_print_info:
     call print_string
     mov al, [hda_dac]
     call print_hex_byte
+    mov si, hda_info5
+    call print_string
+    mov al, [hda_npins]
+    call print_hex_byte
+    mov si, hda_info6
+    call print_string
+    mov al, [hda_ndacs]
+    call print_hex_byte
     mov si, newline
     call print_string
     popad
@@ -4331,6 +4103,7 @@ hda_stream_setup:
     stosd
     xor eax, eax
     stosd
+    call hda_cache_flush
     movzx edx, word [hda_sd]
     add edx, 0x18                   ; BDPL / BDPU
     mov eax, HDA_BDL << 4
@@ -4355,13 +4128,18 @@ hda_stream_setup:
     add edx, 0x02                   ; номер потока 1
     mov al, 0x10
     call hda_wr8
-    ; ЦАП: формат и поток 1 / канал 0
-    mov bl, [hda_dac]
+    ; все ЦАПы: формат и поток 1 / канал 0
+    xor si, si
+.ss_dacs:
+    mov bl, [hda_dacs + si]
     movzx eax, word [hda_fmt]
     or eax, 0x20000                 ; формат ЦАП = формат потока
     call hda_node
     mov eax, 0x70610
     call hda_node
+    inc si
+    cmp si, [hda_ndacs_w]
+    jb .ss_dacs
     pop es
     popad
     clc
@@ -4388,9 +4166,14 @@ hda_stream_stop:
     call hda_rd8
     and al, 0xFD
     call hda_wr8
-    mov bl, [hda_dac]
+    xor si, si
+.st_dacs:
+    mov bl, [hda_dacs + si]
     mov eax, 0x70600                ; ЦАП отвязать от потока
     call hda_node
+    inc si
+    cmp si, [hda_ndacs_w]
+    jb .st_dacs
     popad
     ret
 
@@ -5047,7 +4830,7 @@ pwd_command:
 ;   16 fillrect DH,DL верх-лево CH,CL высота,ширина AL символ BL атрибут
 ;   17 putsat DH,DL DS:SI ASCIIZ BL атрибут
 ;   readfile при ошибке: AX = 1 нет файла/пути, 2 слишком большой, 3 ошибка диска
-API_MAX  equ 0x24
+API_MAX  equ 0x26
 
 api_install:
     push es
@@ -5114,6 +4897,8 @@ api_int:
     je .ai_call
     cmp ah, 0x1F
     je .ai_call
+    cmp ah, 0x25                    ; WAITKEY
+    je .ai_call
     call mouse_undraw
     call [api_fn]
     call mouse_draw
@@ -5138,6 +4923,7 @@ api_tab:
     dw api_putat, api_fillrect, api_putsat
     dw api_readdir, api_shell, api_exec, api_stat, api_readat, api_append
     dw api_mouse, api_mouseshow, api_chdir, api_wm, api_audio, api_date
+    dw api_sysinfo, api_waitkey
 
 api_rand:
     mov ax, [rand_seed]
@@ -5331,8 +5117,10 @@ api_nop:
 api_putc:
     call print_char
     ret
+; байт 1 + атрибут внутри строки меняет цвет (как print_cstring); в конце цвет сбрасывается
 api_puts:
     push si
+    xor cx, cx                      ; CL=1: был escape цвета
 .ap_loop:
     mov ds, [cs:api_uds]
     lodsb
@@ -5340,10 +5128,58 @@ api_puts:
     mov ds, bx
     test al, al
     jz .ap_done
+    cmp al, 1
+    jne .ap_ch
+    mov ds, [cs:api_uds]
+    lodsb
+    mov ds, bx
+    mov [con_attr], al
+    mov cl, 1
+    jmp .ap_loop
+.ap_ch:
     call print_char
     jmp .ap_loop
 .ap_done:
+    test cl, cl
+    jz .ap_ret
+    mov byte [con_attr], 0x07
+.ap_ret:
     pop si
+    ret
+
+; 24: SYSINFO — AL=0 диск: AX занято КБ, DX всего КБ, CL 12/16, CH буква тома; CF=1 ошибка
+;              AL=1 часовой пояс: AL смещение (знаковое), AH 1 = RTC по UTC
+;              AL=2 тики на момент загрузки: DX:AX
+api_sysinfo:
+    cmp al, 1
+    je .si_tz
+    cmp al, 2
+    je .si_boot
+    call disk_usage
+    jc .si_fail
+    mov cl, 12
+    cmp byte [fat_is16], 0
+    je .si_d
+    mov cl, 16
+.si_d:
+    mov ch, [f_disk_letter]
+    ret
+.si_tz:
+    mov al, [tz_off]
+    mov ah, [rtc_utc]
+    ret
+.si_boot:
+    mov ax, [boot_ticks]
+    mov dx, [boot_ticks + 2]
+    ret
+.si_fail:
+    or byte [bp + 6], 1
+    ret
+
+; 25: WAITKEY — как GETKEY, но при простое запускается заставка (см. saver)
+api_waitkey:
+    sti
+    call gs_wait_key
     ret
 api_getkey:
     sti
@@ -5683,6 +5519,7 @@ api_audio:
 .au_poll:
     cmp byte [hda_api_on], 0
     je .au_fail
+    call hda_cache_flush            ; программа только что дописала свою половину
     call hda_playing_half
     mov dx, [hda_lpib_in]
     ret
@@ -6201,9 +6038,16 @@ app_try_run:
     call app_load_file              ; текущий каталог
     pop si
     jnc .atr_go
-    ; /SYSTEM/SYSAPPS/NAME.FAP, затем корень
+    ; /SYSTEM/SYSAPPS/NAME.FAP, /SYSTEM/SYSAPPS/FSH/NAME.FAP (утилиты оболочки), затем корень
     push si
     mov si, sysapps_path
+    call app_prefix_path
+    mov si, api_path2
+    call app_load_file
+    pop si
+    jnc .atr_go
+    push si
+    mov si, fshapps_path
     call app_prefix_path
     mov si, api_path2
     call app_load_file
@@ -6280,8 +6124,6 @@ app_load_path:
 app_load_file:
     pusha
     push es
-    cmp byte [app_depth], 0
-    jne .alf_nested
     call path_save
     push si
     mov di, app_lastpath            ; запомнить путь для перезапуска (EXEC-цепочка)
@@ -6296,6 +6138,20 @@ app_load_file:
     jc .alf_fail
     cmp byte [rp_isdir], 1
     je .alf_fail
+    cmp byte [app_depth], 0
+    je .alf_load
+    ; внутри программы ничего не грузим (CP_SEG может быть занят): только проверить,
+    ; что файл есть — тогда сообщить «только через FAPI_EXEC», иначе «не найдено»
+    call load_dir
+    jc .alf_fail
+    push es
+    mov ax, 0x2000
+    mov es, ax
+    call find_dir_entry
+    pop es
+    jnc .alf_fail
+    jmp .alf_nested
+.alf_load:
     mov word [rf_limit], APP_MAX
     mov word [rf_limit + 2], 0
     call read_file
@@ -6336,6 +6192,7 @@ app_load_file:
 .alf_nested:
     mov si, app_nested_msg
     call print_string
+    call path_restore
     pop es
     popa
     stc
@@ -8481,90 +8338,6 @@ wait_second:
     ret
 
 ;=================== ФУНКЦИИ КОМАНД ===================
-show_date:
-    pusha
-    mov si, date_msg
-    call print_string
-    call get_local_time
-    mov ax, [lt_y]
-    call print_dec_ax
-    mov al, '-'
-    call print_char
-    mov al, [lt_mo]
-    call print_dec2
-    mov al, '-'
-    call print_char
-    mov al, [lt_d]
-    call print_dec2
-    mov si, newline
-    call print_string
-    popa
-    ret
-
-show_time:
-    pusha
-    mov si, time_msg
-    call print_string
-    call get_local_time
-    mov al, [lt_h]
-    call print_dec2
-    mov al, ':'
-    call print_char
-    mov al, [lt_mi]
-    call print_dec2
-    mov al, ':'
-    call print_char
-    mov al, [lt_s]
-    call print_dec2
-    call tz_print_short
-    mov si, newline
-    call print_string
-    popa
-    ret
-
-show_memory:
-    pusha
-    mov si, mem_conv
-    call print_string
-    int 0x12
-    call print_dec_ax
-    mov si, mem_kb
-    call print_string
-    mov ah, 0x88
-    int 0x15
-    jc .sm_noext
-    call print_dec_ax
-    mov si, mem_ext
-    call print_string
-    jmp .sm_done
-.sm_noext:
-    mov si, mem_noext
-    call print_string
-.sm_done:
-    mov si, newline
-    call print_string
-    popa
-    ret
-
-echo_command:
-    pusha
-    mov si, input_buffer
-    add si, 4
-.ec_skip:
-    cmp byte [si], ' '
-    jne .ec_pr
-    inc si
-    jmp .ec_skip
-.ec_pr:
-    cmp byte [si], 0
-    je .ec_nl
-    call print_string
-.ec_nl:
-    mov si, newline
-    call print_string
-    popa
-    ret
-
 matrix_effect:
     pusha
     push es
@@ -8747,36 +8520,6 @@ mx_t1:   dw 0
 mx_t2:   dw 0
 mx_t3:   dw 0
 
-ascii_table:
-    pusha
-    call clear_screen
-    mov si, ascii_header
-    call print_string
-    mov bx, 32
-.at_row:
-    mov di, 4
-.at_col:
-    mov al, bl
-    call print_hex_byte
-    mov al, ' '
-    call print_char
-    mov al, bl
-    call print_char
-    mov al, ' '
-    call print_char
-    inc bx
-    dec di
-    jnz .at_col
-    mov si, newline
-    call print_string
-    cmp bx, 128
-    jb .at_row
-    call wait_key
-    call clear_screen
-    popa
-    ret
-
-
 ; знаковое десятичное число (с необязательным '-') -> AX
 parse_sint:
     push bx
@@ -8792,52 +8535,6 @@ parse_sint:
     pop bx
     ret
 
-hex_converter:
-    pusha
-    mov si, hex_msg
-    call print_string
-    mov word [get_max], 14
-    mov di, hex_buffer
-    call get_string
-    mov si, hex_buffer
-    call parse_uint
-    push ax
-    mov si, hex_result
-    call print_string
-    pop ax
-    call print_hex_word
-    mov si, newline
-    call print_string
-    popa
-    ret
-
-bin_converter:
-    pusha
-    mov si, bin_msg
-    call print_string
-    mov word [get_max], 14
-    mov di, bin_buffer
-    call get_string
-    mov si, bin_buffer
-    call parse_uint
-    push ax
-    mov si, bin_result
-    call print_string
-    pop ax
-    mov bx, ax
-    mov cx, 16
-.bc_bit:
-    shl bx, 1
-    mov al, '0'
-    jnc .bc_zero
-    mov al, '1'
-.bc_zero:
-    call print_char
-    loop .bc_bit
-    mov si, newline
-    call print_string
-    popa
-    ret
 
 ;=================== имя пользователя ===================
 ; Хранится в файле USER.CFG в корне диска (имя + CR LF). Промпт — NAME@ferrix.
@@ -9005,7 +8702,10 @@ user_apply:
     rep movsb                       ; имя вместе с нулём
     call user_build_prompt
     call cfg_save
-    jc .uap_bad
+    jnc .uap_ok
+    mov si, cfg_ro_msg              ; носитель только для чтения (CD/защищённая дискета) — работаем без сохранения
+    call print_string
+.uap_ok:
     pop es
     popa
     clc
@@ -9503,7 +9203,10 @@ setup_wizard:
     mov [saver_min], al
 .su_save:
     call cfg_save
-    jc .su_err
+    jnc .su_done
+    mov si, cfg_ro_msg              ; не записалось — настройки живут до перезагрузки
+    call print_string
+.su_done:
     ; --- итог ---
     mov si, su_done1
     call print_string
@@ -9865,15 +9568,6 @@ clk_font:
     db 0x0E, 0x11, 0x11, 0x0E, 0x11, 0x11, 0x0E, 0     ; 8
     db 0x0E, 0x11, 0x11, 0x0F, 0x01, 0x02, 0x0C, 0     ; 9
 
-show_banner:
-    call clear_screen
-    mov si, boot_art
-    call print_cstring
-    mov si, fetch_info
-    call print_cstring
-    call wait_key
-    ret
-
 ;=================== help ===================
 ; help            — группы и список команд
 ; help GROUP      — команды группы с описаниями
@@ -10096,8 +9790,6 @@ help_tab:
     db "cat", 0,     HG_FILES,  "cat PATH             print file contents", 0
     db "touch", 0,   HG_FILES,  "touch PATH           create empty file", 0
     db "write", 0,   HG_FILES,  "write PATH TEXT      write text to file (create/overwrite)", 0
-    db "mono", 0,    HG_FILES,  "mono PATH            text editor (external MONO.FAP)", 0
-    db "fm", 0,      HG_FILES,  "fm                   two-panel file manager (FM.FAP, F1..F10 keys)", 0
     db "run", 0,     HG_SYSTEM, "run FILE [ARGS]      run .FAP program or .SH script", 0
     db "sh", 0,      HG_SYSTEM, "sh FILE.SH           run shell script", 0
     db "rm", 0,      HG_FILES,  "rm PATH              delete file or empty directory", 0
@@ -10105,12 +9797,6 @@ help_tab:
     db "rename", 0,  HG_FILES,  "rename OLD NEW       rename file or directory", 0
     db "cp", 0,      HG_FILES,  "cp SRC DST           copy file (any size, streaming)", 0
     db "mv", 0,      HG_FILES,  "mv SRC DST           move/rename file or directory", 0
-    db "fetch", 0,   HG_SYSTEM, "fetch                system info (neofetch style)", 0
-    db "cpu", 0,     HG_SYSTEM, "cpu                  processor details (CPUID)", 0
-    db "mem", 0,     HG_SYSTEM, "mem                  conventional/extended memory", 0
-    db "date", 0,    HG_SYSTEM, "date                 show date", 0
-    db "time", 0,    HG_SYSTEM, "time                 show time", 0
-    db "clock", 0,   HG_SYSTEM, "clock                analog + digital clock, date (CLOCK.FAP)", 0
     db "user", 0,    HG_SYSTEM, "user [NAME]          show or change username (saved in USER.CFG)", 0
     db "whoami", 0,  HG_SYSTEM, "whoami               print username", 0
     db "tz", 0,      HG_SYSTEM, "tz [+H [utc]]        show/set timezone; 'utc' = RTC keeps UTC", 0
@@ -10120,31 +9806,12 @@ help_tab:
     db "shutdown", 0,HG_SYSTEM, "shutdown             power off (APM)", 0
     db "view", 0,    HG_MEDIA,  "view FILE.BMP        show 8/24/32-bit BMP picture (320x200)", 0
     db "play", 0,    HG_MEDIA,  "play FILE.WAV [sb|hda]  play 8-bit PCM WAV (SB16 / HD Audio)", 0
-    db "echo", 0,    HG_TOOLS,  "echo TEXT            print text", 0
-    db "calc", 0,    HG_TOOLS,  "calc [-c] [EXPR]     calculator (CALC.FAP): window mode; -c = console", 0
-    db "paint", 0,   HG_TOOLS,  "paint [FILE.BMP]     16-color paint, saves BMP (PAINT.FAP, mouse)", 0
-    db "iron", 0,    HG_TOOLS,  "iron SRC.ASM OUT.FAP frasm assembler -> .FAP program (IRON.FAP)", 0
-    db "ferramp", 0, HG_MEDIA,  "ferramp [DIR|FILE]   music player: WAV/SNG playlist (FERRAMP.FAP)", 0
-    db "synth", 0,   HG_MEDIA,  "synth [FILE.SNG]     piano + sequencer on HD Audio (SYNTH.FAP)", 0
-    db "gui", 0,     HG_SYSTEM, "gui [-t N | -w BMP]  window manager (GUI.FAP): fm + apps in windows", 0
-    db "hex", 0,     HG_TOOLS,  "hex N                decimal -> hexadecimal", 0
-    db "bin", 0,     HG_TOOLS,  "bin N                decimal -> binary", 0
-    db "ascii", 0,   HG_TOOLS,  "ascii                ASCII table", 0
-    db "matrix", 0,  HG_TOOLS,  "matrix               matrix rain screensaver (any key = exit)", 0
+    db "fsh", 0,     HG_SYSTEM, "fsh                  Ferrix shell module (FSH.FAP, started at boot)", 0
     db "help", 0,    HG_INFO,   "help [GROUP|CMD]     this help: groups, group list or one command", 0
     db "clear", 0,   HG_TOOLS,  "clear                clear screen and redraw banner", 0
-    db "banner", 0,  HG_INFO,   "banner               show the Ferrix banner", 0
-    db "osinfo", 0,  HG_INFO,   "osinfo               about the OS", 0
-    db "credits", 0, HG_INFO,   "credits              authors", 0
-    db "snake", 0,   HG_GAMES,  "snake                snake (arrows/WASD, P pause, Esc quit)", 0
-    db "tetris", 0,  HG_GAMES,  "tetris               tetris (arrows, Up rotate, Space drop)", 0
-    db "mines", 0,   HG_GAMES,  "mines                minesweeper (arrows, Space open, F flag)", 0
-    db "2048", 0,    HG_GAMES,  "2048                 join tiles to 2048 (arrows/WASD, R restart)", 0
-    db "pong", 0,    HG_GAMES,  "pong                 pong vs CPU, first to 10 (W/S or arrows)", 0
-    db "micro", 0,   HG_GAMES,  "micro FILE.CH8       CHIP-8 emulator: micro /BALL.CH8", 0
     db 0
 
-help_title      db "== FERRIX OS COMMANDS ==", 13,10, 0
+help_title      db "== KERNEL EMERGENCY SHELL: built-in commands (full shell = fsh) ==", 13,10, 0
 help_foot       db " Type 'help GROUP' (e.g. help files) or 'help COMMAND' for details.", 13,10, 0
 help_hdr        db "== ", 0
 help_hdr2       db " ==", 13,10, 0
@@ -10170,6 +9837,7 @@ fat_eocv          dw 0x0FFF       ; метка конца цепочки при 
 fat_win           dw 0xFFFF       ; номер первого сектора FAT в окне (FFFF = пусто)
 fat_win_n         dw 2            ; секторов в окне
 fat_dirty         db 0
+part_lba          dd 0            ; LBA начала тома (раздел MBR), 0 — том с начала диска
 fat_hint          dw 2            ; с какого кластера искать свободный
 fat_cache         times 1024 db 0
 get_max           dw 1022
@@ -10205,6 +9873,9 @@ api_path          times 80 db 0
 api_path2         times 80 db 0
 app_entry         dw 0
 app_depth         db 0
+fsh_boot          db 0            ; 1 = FSH.FAP уже запускали после загрузки
+fsh_cmd           db "fsh", 0
+fsh_missing       db 1, 0x0C, " EMERGENCY MODE", 1, 0x07, ": FSH.FAP not found - built-in kernel shell.", 13,10, 0
 con_seg           dw 0xB800         ; куда пишет print_char (GUI подменяет на экран окна)
 con_attr          db 0x07           ; текущий цвет консоли (print_cstring/print_attr меняют и возвращают 0x07)
 chain_flag        db 0
@@ -10247,6 +9918,7 @@ app_ss            dw 0
 app_sp            dw 0
 app_ext           db ".FAP", 0
 sysapps_path      db "/SYSTEM/SYSAPPS/", 0
+fshapps_path      db "/SYSTEM/SYSAPPS/FSH/", 0
 root_path         db "/", 0
 system_dirname    db "SYSTEM     "
 sysapps_dirname   db "SYSAPPS    "
@@ -10316,6 +9988,18 @@ hda_pin           db 0
 hda_pindev        db 0
 hda_best          db 0
 hda_dac           db 0
+HDA_MAXPINS       equ 8
+HDA_MAXDACS       equ 4
+hda_npins_w:
+hda_npins         db 0
+                  db 0
+hda_ndacs_w:
+hda_ndacs         db 0
+                  db 0
+hda_pins          times HDA_MAXPINS db 0
+hda_pindevs       times HDA_MAXPINS db 0
+hda_dacs          times HDA_MAXDACS db 0
+hda_conn4         dd 0
 hda_sd            dw 0
 hda_bufaddr       dd 0            ; физический адрес буфера потока (две половины подряд)
 hda_halfsz        dd 0            ; размер половины в байтах
@@ -10334,6 +10018,8 @@ hda_info1         db "HDA: ctrl ", 0
 hda_info2         db " codec ", 0
 hda_info3         db " pin ", 0
 hda_info4         db " dac ", 0
+hda_info5         db " pins ", 0
+hda_info6         db " dacs ", 0
 wav_have_fmt      db 0
 sb_pic_mask       db 0
 wav_err           dw 0            ; указатель на сообщение об ошибке wav_parse
@@ -10486,35 +10172,16 @@ boot_art:
     db 0xDB, 0xDB, ' ', ' ', ' ', 0xDB, 0xDB, ' '
     db 13, 10
     db "                                                          ", 13,10
-    db "                    |Ferrix OS v4.0|                      ", 13,10
+    db "                 |Ferrix OS v4.0 patch 1|                 ", 13,10
     db "        ======================================            ", 13,10
     db "        =        |16-bit Real Mode |         =            ", 13,10
     db "        ======================================            ", 13,10
     db "==========================================================", 13,10
     db 13,10, 0
 
-fetch_info:
-    db 1, 0x0B, "  OS      ", 1, 0x08, ": ", 1, 0x07, "Ferrix OS v4.0", 13,10
-    db 1, 0x0B, "  Kernel  ", 1, 0x08, ": ", 1, 0x07, "16-bit real mode", 13,10
-    db 1, 0x0B, "  Shell   ", 1, 0x08, ": ", 1, 0x07, "fsh 1.0", 13,10
-    db 1, 0x0B, "  FS      ", 1, 0x08, ": ", 1, 0x07, "FAT12/FAT16 (r/w)", 13,10
-    db 1, 0x0B, "  Author  ", 1, 0x08, ": ", 1, 0x07, "MrCode", 13,10, 0
-
 cmd_reboot      db "reboot", 0
 cmd_shutdown    db "shutdown", 0
-cmd_date        db "date", 0
-cmd_time        db "time", 0
-cmd_mem         db "mem", 0
-cmd_echo        db "echo", 0
-cmd_matrix      db "matrix", 0
-cmd_ascii       db "ascii", 0
-cmd_cpu         db "cpu", 0
-cmd_osinfo      db "osinfo", 0
-cmd_credits     db "credits", 0
-cmd_hex         db "hex", 0
-cmd_bin         db "bin", 0
 cmd_clock       db "clock", 0
-cmd_banner      db "banner", 0
 cmd_pwd         db "pwd", 0
 cmd_whoami      db "whoami", 0
 cmd_user        db "user", 0
@@ -10536,120 +10203,17 @@ cmd_view        db "view", 0
 cmd_play        db "play", 0
 cmd_ls          db "ls", 0
 cmd_dir         db "dir", 0
-cmd_fetch       db "fetch", 0
 cmd_clear       db "clear", 0
 cmd_help        db "help", 0
 
-date_msg        db "Date: ", 0
+f_disk_letter   db "A"            ; буква тома для FAPI_SYSINFO
 time_msg        db "Time: ", 0
-mem_conv        db "Conventional: ", 0
-mem_kb          db " KB", 13,10, 0
-mem_ext         db "Extended: ", 0
-mem_noext       db "Extended: n/a", 13,10, 0
 reboot_msg      db "REBOOTING...", 13,10, 0
 shutdown_msg    db "Shutting down...", 13,10, 0
 apm_fail_msg    db "APM not available.", 13,10, 0
 halt_msg        db "It is now safe to turn off your computer.", 13,10, 0
 unknown_msg     db "Command not found. Type 'help'", 13,10, 0
-
-fetch_logo:
-    db 0x0C, "  "
-    times 16 db 0xDB
-    db 0
-    db 0x0C, "  "
-    times 16 db 0xDB
-    db 0
-    db 0x0C, "  "
-    times 4 db 0xDB
-    db 0
-    db 0x0E, "  "
-    times 4 db 0xDB
-    db 0
-    db 0x0E, "  "
-    times 12 db 0xDB
-    db 0
-    db 0x0E, "  "
-    times 12 db 0xDB
-    db 0
-    db 0x06, "  "
-    times 4 db 0xDB
-    db 0
-    db 0x06, "  "
-    times 4 db 0xDB
-    db 0
-    db 0x04, "  "
-    times 4 db 0xDB
-    db 0
-    db 0x04, "  "
-    times 4 db 0xDB
-    db 0
-    db 0x08, "  f e r r i x", 0
-    db 0xFF
-fetch_dash      db "-----------", 0
-f_os            db "OS: ", 0
-f_os_v          db "Ferrix OS 4.0 x86 (16-bit)", 0
-f_host          db "Host: ", 0
-f_host_v        db "IBM PC/AT compatible (BIOS ", 0
-f_kernel        db "Kernel: ", 0
-f_kernel_v      db "ferrix-4.0-realmode", 0
-f_uptime        db "Uptime: ", 0
-f_hours         db " hours, ", 0
-f_mins          db " mins", 0
-f_shell         db "Shell: ", 0
-f_shell_v       db "fsh 1.0", 0
-f_res           db "Resolution: ", 0
-f_res_v         db "80x25 (text, 16 colors)", 0
-f_term          db "Terminal: ", 0
-f_term_v        db "VGA console", 0
-f_cpu           db "CPU: ", 0
-f_mem           db "Memory: ", 0
-f_mem_v1        db " KB base + ", 0
-f_mem_v2        db " KB ext", 0
-f_mem_noext     db " KB base", 0
-f_disk          db "Disk ("
-f_disk_letter   db "A:): ", 0
-f_disk_v        db " KB / ", 0
-f_disk_v12      db " KB (FAT12)", 0
-f_disk_v16      db " KB (FAT16)", 0
-f_disk_err      db "n/a", 0
-cpu_vendor_lbl   db "Vendor  : ", 0
-cpu_family_lbl   db "Family  : ", 0
-cpu_model_lbl    db "  Model: ", 0
-cpu_stepping_lbl db "  Step: ", 0
-cpu_brand_lbl    db "Brand   : ", 0
-cpu_16bit_lbl    db "Mode    : 16-bit Real Mode", 13,10, 0
-cpu_lbl          db "CPU: ", 0
-cpu_386_lbl      db "80386/80486 (no CPUID)", 0
-cpu_286_lbl      db "80286", 0
-cpu_8086_lbl     db "8086/8088", 0
-
-
-hex_msg         db "Dec: ", 0
-hex_result      db "0x", 0
-bin_msg         db "Dec: ", 0
-bin_result      db "0b", 0
-hex_buffer      times 16 db 0
-bin_buffer      times 16 db 0
-
-osinfo_msg:
-    db "OS: Ferrix OS v4.0", 13,10
-    db "Arch: x86 16-bit", 13,10
-    db "FS: FAT12/FAT16 (r/w)", 13,10, 0
-
-credits_msg:
-    db 0xB0, "================================================", 0xB0, 13,10
-    db 0xB0, "                    CREDITS                     ", 0xB0, 13,10
-    db 0xB0, "================================================", 0xB0, 13,10
-    db 0xB0, "  OS Name: Ferrix OS v4.0                       ", 0xB0, 13,10
-    db 0xB0, "  Language: NASM Assembly                       ", 0xB0, 13,10
-    db 0xB0, "  Made by: MrCode                               ", 0xB0, 13,10
-    db 0xB0, "================================================", 0xB0, 13,10, 0
-
-
-ascii_header:
-    db "HEX CHR  HEX CHR  HEX CHR  HEX CHR", 13,10
-    db "==================================", 13,10, 0
-
+cfg_ro_msg      db " (read-only media: settings are kept for this session only)", 13,10, 0
 boot_log_msg      db " Kernel loaded at 1000:0000. Initializing...", 13, 10, 0
 welcome_msg     db " Ready. Type 'help'.", 13,10
                 db "                    ", 13,10, 0

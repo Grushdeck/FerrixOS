@@ -1,6 +1,7 @@
 ;======================================
 ; File name: apps/ferramp.asm
 ; Project: FERRIX-OS
+; Author: Copyright (c) 2026 Grushdeck
 ; Description: ferramp — музыкальный плеер (WAV + SNG)
 ;======================================
 ; Запуск: ferramp [FILE.WAV]

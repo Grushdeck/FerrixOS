@@ -12,7 +12,7 @@
        █████   █████   ██████  ██████    ███     ███
        ██      ██      ██  ██  ██  ██    ███    ██ ██
        ██      ███████ ██   ██ ██   ██ ███████ ██   ██
-                    |Ferrix OS v4.0|
+                 |Ferrix OS v4.0 patch 1|
 ==========================================================
  Ready. Type 'help'.
 
@@ -52,9 +52,12 @@ neo@ferrix ~ » ls
 | `iron SRC.ASM OUT.FAP` | Компилятор ассемблера frasm → `.FAP` прямо в системе |
 | `snake`, `tetris`, `mines`, `2048`, `pong` | Игры с рекордами на диске |
 
-Встроенные команды ядра: `ls dir cd pwd cat touch write rm mkdir rename cp mv run sh fetch cpu mem date
-time user whoami tz setup saver reboot shutdown view play echo hex bin ascii matrix clear banner osinfo credits help`.
-`help` показывает группы, `help files` — команды группы, `help cat` — одну команду.
+Оболочка **fsh** — отдельный модуль `FSH.FAP`, ядро запускает его после загрузки (нет файла — ядро
+пишет `EMERGENCY MODE` и работает своя минимальная оболочка). Встроенные в ядро команды (драйвер FAT и
+настройка): `ls dir cd pwd cat touch write rm mkdir rename cp mv run sh user whoami tz setup saver view play
+clear reboot shutdown`. Остальное — отдельные программы: утилиты оболочки `fetch cpu mem date time echo
+hex bin ascii matrix banner osinfo credits` лежат в `/SYSTEM/SYSAPPS/FSH`, приложения — в `/SYSTEM/SYSAPPS`. `help` в fsh показывает группы,
+`help files` — команды группы, `help cat` — одну команду.
 
 ## Сборка и запуск
 
@@ -62,24 +65,32 @@ time user whoami tz setup saver reboot shutdown view play echo hex bin ascii mat
 
 ```bash
 sudo apt install nasm dosfstools mtools qemu-system-x86   # Debian / Ubuntu
-./build.sh            # hd.img — жёсткий диск 32 МБ FAT16, затем запуск QEMU
-./build.sh floppy     # os.img — дискета 1.44 МБ FAT12
+./build-img.sh            # ferrix.img — диск 32 МБ (MBR + раздел FAT16), затем запуск QEMU
+./build-img.sh floppy     # os.img — дискета 1.44 МБ FAT12
+./build-iso.sh            # ferrix.iso — гибридный ISO (внутри ferrix.img): CD или флешка, затем QEMU с -cdrom
 ```
+
+`NORUN=1 ./build-img.sh` / `NORUN=1 ./build-iso.sh` — только собрать, без QEMU. С настоящего CD система
+работает «только для чтения»: настройки мастера и файлы живут до перезагрузки. Тот же `ferrix.iso`,
+записанный на флешку целиком, — обычный диск 32 МБ с записью (ISO гибридный: сектор 0 — MBR,
+раздел №1 — тот самый FAT16-том из ferrix.img).
 
 Запуск вручную (звук: PC speaker + SB16 + HD Audio; вместо `alsa` можно `pa` или `sdl`):
 
 ```
-qemu-system-i386 -drive file=hd.img,format=raw,if=ide -boot c -audiodev alsa,id=snd0 \
+qemu-system-i386 -drive file=ferrix.img,format=raw,if=ide -boot c -audiodev alsa,id=snd0 \
     -machine pcspk-audiodev=snd0 -device sb16,audiodev=snd0 -device intel-hda -device hda-output,audiodev=snd0
 ```
 
 Без `mtools`/`dosfstools` образ собирает `tools/mkdisk.py` (чистый Python):
-`python3 tools/mkdisk.py hd.img --hd --boot boot.bin --kernel kernel.bin --sysapps build --root examples/*`.
+`python3 tools/mkdisk.py ferrix.img --hd --mbr mbr.bin --boot boot.bin --kernel kernel.bin --sysapps build --root examples/*`.
+ISO делает `tools/mkiso.py`: `python3 tools/mkiso.py ferrix.iso --boot ferrix.img` (гибрид HDD) или `--boot os.img` (эмуляция дискеты).
 
-Свои файлы на диск: `mcopy -i hd.img file.txt ::FILE.TXT` (имена 8.3, заглавными).
+Свои файлы на диск: `mcopy -i ferrix.img file.txt ::FILE.TXT` (имена 8.3, заглавными).
 
-**Реальное железо**: флешка — `sudo dd if=hd.img of=/dev/sdX bs=512 && sync` (весь диск, не раздел;
-загрузка в режиме Legacy/CSM, USB-HDD или USB-FDD), дискета — `dd if=os.img of=/dev/fd0`.
+**Реальное железо**: флешка — `sudo dd if=ferrix.img of=/dev/sdX bs=512 && sync` или так же `ferrix.iso`
+(весь диск, не раздел; в Windows — Rufus в режиме «DD-образ»; загрузка Legacy/CSM, USB-HDD).
+Дискета — `dd if=os.img of=/dev/fd0`.
 Образ — «суперфлоппи» без таблицы разделов; геометрия диска берётся у BIOS.
 
 ## Структура проекта
@@ -88,12 +99,13 @@ qemu-system-i386 -drive file=hd.img,format=raw,if=ide -boot c -audiodev alsa,id=
 boot.asm        загрузчик (boot-сектор FAT12/FAT16, грузит KERNEL.SYS)
 kernel.asm      ядро + оболочка (один файл)
 fapi.inc        заголовок .FAP и номера системных вызовов
-apps/           программы: fm mono calc paint gui clock ferramp synth micro iron
+apps/           программы: fm mono calc paint gui fsh clock ferramp synth micro iron
                 игры snake tetris mines 2048 pong, пример hello; game.inc — помощники для игр
-tools/          mkdisk.py — сборка образа; fpy.py — компилятор языка ferpy → frasm
+tools/          mkdisk.py — сборка образа диска; mkiso.py — загрузочный ISO; fpy.py — компилятор ferpy → frasm
 examples/       TEST.ASM, TEST2.ASM (frasm), BALL.CH8 (CHIP-8), DEMO.SNG (synth), *.fpy
 docs/           документация (ниже)
-build.sh        сборка и запуск в QEMU
+build-img.sh    сборка образа диска/дискеты и запуск в QEMU
+build-iso.sh    сборка загрузочного ISO и запуск в QEMU
 ```
 
 ## Документация

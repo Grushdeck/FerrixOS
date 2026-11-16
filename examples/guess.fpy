@@ -1,0 +1,21 @@
+# guess.fpy - guess the number (1..100)
+secret = rand() % 100 + 1
+tries = 0
+print("I picked a number from 1 to 100 (q = give up).")
+while True:
+    print("Your guess: ", end="")
+    s = input()
+    if s == "q":
+        print("Giving up? It was", secret)
+        break
+    n = int(s)
+    tries += 1
+    if n < secret:
+        print("Higher!")
+    elif n > secret:
+        print("Lower!")
+    else:
+        print("Correct! Tries:", tries)
+        break
+print("Press any key...")
+getkey()

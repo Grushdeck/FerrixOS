@@ -1,6 +1,7 @@
 ;======================================
 ; File name: apps/paint.asm
 ; Project: FERRIX-OS
+; Author: Copyright (c) 2026 Grushdeck
 ; Description: paint — текстовый графический редактор с сохранением в BMP (.FAP)
 ;======================================
 ; paint [FILE.BMP] — холст 80x23 клеток, 16 цветов.

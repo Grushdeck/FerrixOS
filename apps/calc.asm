@@ -1,6 +1,7 @@
 ;======================================
 ; File name: apps/calc.asm
 ; Project: FERRIX-OS
+; Author: Copyright (c) 2026 Grushdeck
 ; Description: calc — калькулятор (внешняя программа .FAP)
 ;======================================
 ; calc EXPR        — вычислить и напечатать

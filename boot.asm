@@ -11,6 +11,7 @@
 ; Геометрию диска спрашивает у BIOS (int 13h/08h): на флешке в режиме
 ; USB-HDD она отличается от дискетной 18x2, и жёстко зашитые CHS грузят мусор.
 ; Ядро берёт геометрию и параметры тома из BPB загрузочного сектора (0x7C00+).
+; Том может лежать в разделе MBR: смещение — поле hidden sectors BPB (ставит mkdisk/mkfs -h).
 
 [bits 16]
 [org 0x7c00]
@@ -203,6 +204,8 @@ read_sectors:
     push ax
     push cx
     xor dx, dx
+    add ax, [bdb_hidden_sectors]        ; + начало раздела (MBR); 32-битный LBA в DX:AX
+    adc dx, [bdb_hidden_sectors + 2]
     div word [bdb_sectors_per_track]    ; AX = LBA / spt, DX = сектор-1
     mov cl, dl
     inc cl

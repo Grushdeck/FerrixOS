@@ -1,6 +1,7 @@
 ;======================================
 ; File name: apps/micro.asm
 ; Project: FERRIX-OS
+; Author: Copyright (c) 2026 Grushdeck
 ; Description: micro — эмулятор CHIP-8
 ;======================================
 ; Запуск: micro FILE.CH8 [-s N] [-c X] [-q] [-l] [-w]

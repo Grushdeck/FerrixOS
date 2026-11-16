@@ -1,6 +1,7 @@
 ;======================================
 ; File name: apps/ironpp.inc
 ; Project: FERRIX-OS
+; Author: Copyright (c) 2026 Grushdeck
 ; Description: iron — препроцессор frasm: чтение строк из далёкого сегмента, %include,
 ;              %macro/%endmacro (с %1..%9 и %%метка), %define, %ifdef/%ifndef/%else/%endif,
 ;              [директивы в скобках]. Подключается из iron.asm (вынесен, чтобы iron мог

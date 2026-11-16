@@ -1,0 +1,26 @@
+# primes.fpy - sieve of Eratosthenes up to 1000, printed in columns
+N = 1000
+sieve = bytes(1001)
+count = 0
+
+def mark(p):
+    j = p * p
+    while j <= N:
+        sieve[j] = 1
+        j += p
+
+for i in range(2, 32):
+    if sieve[i] == 0:
+        mark(i)
+
+col = 0
+for i in range(2, N + 1):
+    if not sieve[i]:
+        count += 1
+        print(i, end=" ")
+        col += 1
+        if col == 12:
+            print()
+            col = 0
+print()
+print("Total primes:", count)

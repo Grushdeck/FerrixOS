@@ -1,6 +1,7 @@
 ;======================================
 ; File name: apps/tetris.asm
 ; Project: FERRIX-OS
+; Author: Copyright (c) 2026 Grushdeck
 ; Description: Tetris (игра .FAP)
 ;======================================
 ; Стакан 10x20, клетка = 2 символа. Стрелки <- -> двигают, Up — поворот,

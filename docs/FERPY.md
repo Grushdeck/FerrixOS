@@ -57,7 +57,7 @@ python3 tools/fpy.py hello.fpy -o out/H.ASM # явное имя результа
 Результат — текстовый файл frasm (кодировка cp866/cp437, переводы строк CR LF, чтобы его можно
 было открыть редактором `mono` прямо в Ferrix). Дальше два пути:
 
-* **в Ferrix**: скопировать `.ASM` на диск Ferrix (`mcopy -i hd.img PYHELLO.ASM ::`; `build.sh` ferpy-примеры
+* **в Ferrix**: скопировать `.ASM` на диск Ferrix (`mcopy -i ferrix.img PYHELLO.ASM ::`; `build-img.sh` ferpy-примеры
   в образ не кладёт), затем
 
   ```

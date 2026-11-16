@@ -1,6 +1,7 @@
 ;======================================
 ; File name: apps/snake.asm
 ; Project: FERRIX-OS
+; Author: Copyright (c) 2026 Grushdeck
 ; Description: Snake — змейка (игра .FAP)
 ;======================================
 ; Управление: стрелки / WASD, P — пауза, Esc — выход.
